@@ -87,10 +87,26 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.27
         with:
           cuda: ${{ matrix.cuda-version }}
+          use-github-cache: true
+          use-local-cache: true
+          method: local
+          sub-packages: []
+          non-cuda-sub-packages: []
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
         uses: ilammy/msvc-dev-cmd@v1
+
+      # Verify CUDA installation
+      - name: Verify CUDA installation
+        run: |
+          echo "CUDA_HOME: $CUDA_HOME"
+          echo "PATH: $PATH"
+          if command -v nvcc &> /dev/null; then
+            nvcc --version
+          else
+            echo "nvcc not found in PATH"
+          fi
 
       # Install cibuildwheel
       - name: Install cibuildwheel
@@ -106,6 +122,11 @@ jobs:
           echo "TORCH_MINOR_VERSION=${{ matrix.torch-minor }}" >> $GITHUB_ENV
           echo "TORCH_PATCH_VERSION=${{ matrix.torch-patch }}" >> $GITHUB_ENV
           echo "SAGEATTENTION_WHEEL_VERSION_SUFFIX=+cu${{ matrix.cuda-minor }}torch${{ matrix.torch-minor }}.${{ matrix.torch-patch }}" >> $GITHUB_ENV
+          
+          # Set CUDA_HOME for Windows
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            echo "CUDA_HOME=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{ matrix.cuda-version }}" >> $GITHUB_ENV
+          fi
 
       # Build wheels using cibuildwheel
       - name: Build wheels
