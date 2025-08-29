@@ -39,7 +39,7 @@ target "wheel-linux" {
   dockerfile = "dockerfile.builder.linux"
   target = "sageattention-wheel"
   platforms = ["linux/amd64"]
-  output = ["type=local,dest=./wheels"]
+  output = ["type=local,dest=./builder"]
   args = {
     CUDA_VERSION = CUDA_VERSION
     PYTHON_VERSION = PYTHON_VERSION
@@ -57,7 +57,7 @@ target "wheel-windows" {
   dockerfile = "dockerfile.builder.windows"
   target = "sageattention-wheel"
   platforms = ["windows/amd64"]
-  output = ["type=local,dest=./wheels"]
+  output = ["type=local,dest=./builder"]
   args = {
     CUDA_VERSION = CUDA_VERSION
     PYTHON_VERSION = PYTHON_VERSION
@@ -75,7 +75,7 @@ target "wheel" {
   dockerfile = "dockerfile.builder.linux"
   target = "sageattention-wheel"
   platforms = [BUILD_PLATFORM]
-  output = ["type=local,dest=./wheels"]
+  output = ["type=local,dest=./builder"]
   args = {
     CUDA_VERSION = CUDA_VERSION
     PYTHON_VERSION = PYTHON_VERSION
