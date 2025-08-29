@@ -41,26 +41,6 @@ target "wheel-linux" {
   platforms = ["linux/amd64"]
   output = ["type=local,dest=./wheels"]
   args = {
-    PLATFORM = "linux"
-    CUDA_VERSION = CUDA_VERSION
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = TORCH_MINOR_VERSION
-    TORCH_PATCH_VERSION = TORCH_PATCH_VERSION
-    CUDA_SUFFIX = "129"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-# Build wheel for Windows
-target "wheel-windows" {
-  dockerfile = "dockerfile.builder"
-  target = "sageattention-wheel"
-  platforms = ["windows/amd64"]
-  output = ["type=local,dest=./wheels"]
-  args = {
-    PLATFORM = "windows"
     CUDA_VERSION = CUDA_VERSION
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
@@ -79,7 +59,6 @@ target "wheel" {
   platforms = [BUILD_PLATFORM]
   output = ["type=local,dest=./wheels"]
   args = {
-    PLATFORM = PLATFORM
     CUDA_VERSION = CUDA_VERSION
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
@@ -97,25 +76,6 @@ target "test-linux" {
   target = "sageattention-test"
   platforms = ["linux/amd64"]
   args = {
-    PLATFORM = "linux"
-    CUDA_VERSION = CUDA_VERSION
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = TORCH_MINOR_VERSION
-    TORCH_PATCH_VERSION = TORCH_PATCH_VERSION
-    CUDA_SUFFIX = "129"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-# Test the built wheel for Windows
-target "test-windows" {
-  dockerfile = "dockerfile.builder"
-  target = "sageattention-test"
-  platforms = ["windows/amd64"]
-  args = {
-    PLATFORM = "windows"
     CUDA_VERSION = CUDA_VERSION
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
@@ -133,7 +93,6 @@ target "test" {
   target = "sageattention-test"
   platforms = [BUILD_PLATFORM]
   args = {
-    PLATFORM = PLATFORM
     CUDA_VERSION = CUDA_VERSION
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
@@ -147,5 +106,5 @@ target "test" {
 
 # Multi-platform build group
 group "multi-platform" {
-  targets = ["wheel-linux", "wheel-windows"]
+  targets = ["wheel-linux"]
 } 

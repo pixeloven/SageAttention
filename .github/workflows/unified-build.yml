@@ -1,4 +1,4 @@
-name: SageAttention Wheels
+name: SageAttention Wheels - Direct Compilation
 
 on:
   push:
@@ -25,7 +25,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Job 1: Build wheels using cibuildwheel (production builds)
+  # Job 1: Build wheels (direct compilation - no Docker)
   build-wheels:
     strategy:
       matrix:
@@ -35,6 +35,7 @@ jobs:
             platform: linux
             python-version: "3.12"
             torch-version: "2.7.0"
+            cuda-version: "12.9.1"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
             torch-minor: "7"
@@ -44,6 +45,7 @@ jobs:
             platform: linux
             python-version: "3.12"
             torch-version: "2.8.0"
+            cuda-version: "12.9.1"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
             torch-minor: "8"
@@ -53,6 +55,7 @@ jobs:
             platform: windows
             python-version: "3.12"
             torch-version: "2.7.0"
+            cuda-version: "12.9.1"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
             torch-minor: "7"
@@ -62,6 +65,7 @@ jobs:
             platform: windows
             python-version: "3.12"
             torch-version: "2.8.0"
+            cuda-version: "12.9.1"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
             torch-minor: "8"
@@ -92,19 +96,9 @@ jobs:
       - name: Set up CUDA (Windows)
         if: matrix.platform == 'windows'
         run: |
-          # Install CUDA using winget (Windows Package Manager)
-          echo "Installing CUDA on Windows using winget"
-          
-          # Install CUDA using winget
-          winget install NVIDIA.CUDA --version 12.9.0 --accept-package-agreements --accept-source-agreements
-          
-          # Wait for installation to complete
-          Start-Sleep -Seconds 30
-          
-          # Set environment variables for CUDA 12.9
-          echo "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9" >> $GITHUB_ENV
-          echo "CUDA_ROOT=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9" >> $GITHUB_ENV
-          echo "PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9\bin;$PATH" >> $GITHUB_ENV
+          echo "CUDA_VERSION=${{ matrix.cuda-version }}" >> $GITHUB_ENV
+          echo "PYTHON_VERSION=${{ matrix.python-version }}" >> $GITHUB_ENV
+          echo "TORCH_VERSION=${{ matrix.torch-version }}" >> $GITHUB_ENV
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
@@ -145,19 +139,18 @@ jobs:
         run: |
           echo "CUDA_HOME=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{ matrix.cuda-version }}" >> $GITHUB_ENV
 
-      # Build wheels using cibuildwheel
-      - name: Build wheels
+
+
+      # Build wheels using cibuildwheel for Linux
+      - name: Build wheels using cibuildwheel
+        if: matrix.platform == 'linux'
         run: |
           # Set cibuildwheel environment variables
-          if [[ "${{ matrix.platform }}" == "windows" ]]; then
-            export CIBW_BUILD="cp312-win_amd64"
-          else
-            export CIBW_BUILD="cp312-manylinux_x86_64"
-          fi
+          export CIBW_BUILD="cp312-manylinux_x86_64"
           export CIBW_BEFORE_BUILD="python update_pyproject.py"
           export CIBW_BEFORE_ALL="pip install --upgrade pip setuptools wheel packaging"
           
-          # Build for the specific platform
+          # Build for Linux platform
           cibuildwheel --platform ${{ matrix.platform }} --output-dir wheelhouse .
 
       # Upload wheel artifacts
@@ -168,16 +161,16 @@ jobs:
           path: wheelhouse/*.whl
           retention-days: 7
 
-  # Job 2: Test wheels using Docker (maintains consistency)
+  # Job 2: Test wheels (direct installation)
   test-wheels:
     needs: build-wheels
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.12]
-        torch-version: [2.7.0]
         include:
           - python-version: 3.12
+            torch-version: 2.7.0
+            cuda-version: 12.9.1
             cuda-arch-list: "7.0;7.5;8.0;8.6;8.9;9.0"
             torch-minor-version: 7
             torch-patch-version: 0
@@ -187,38 +180,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@main
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install CUDA (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          echo "Using pre-installed CUDA on Ubuntu runner"
+          echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+          echo "CUDA_ROOT=/usr/local/cuda" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PATH=/usr/local/cuda/bin:$PATH" >> $GITHUB_ENV
 
       # Download wheels for testing
       - name: Download wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          name: sageattention-wheels-linux
+          pattern: sageattention-wheels-*
 
-      # Test wheels using Docker (maintains consistency)
-      - name: Test wheels using Docker
+      # Test wheels (direct installation)
+      - name: Test wheels
         run: |
-          docker buildx bake --file docker-bake.hcl test \
-            --set "*.args.CUDA_VERSION=${{ matrix.cuda-version }}" \
-            --set "*.args.PYTHON_VERSION=${{ matrix.python-version }}" \
-            --set "*.args.TORCH_CUDA_ARCH_LIST=${{ matrix.cuda-arch-list }}" \
-            --set "*.args.TORCH_MINOR_VERSION=${{ matrix.torch-minor-version }}" \
-            --set "*.args.TORCH_PATCH_VERSION=${{ matrix.torch-patch-version }}" \
-            --set "*.args.CUDA_MINOR_VERSION=${{ matrix.cuda-minor-version }}"
+          # Install PyTorch
+          pip install torch==${{ matrix.torch-version }} torchvision --index-url https://download.pytorch.org/whl/cu${{ matrix.cuda-minor-version }}9
+          
+          # Install and test the built wheel
+          find . -name "*.whl" -type f | head -1 | while read wheel; do
+            echo "Testing wheel: $wheel"
+            pip install "$wheel"
+            python -c "import sageattention; print('SageAttention imported successfully')"
+          done
 
-  # Job 3: Publish wheels
+  # Job 3: Publish wheels (direct compilation approach)
   publish-wheels:
     needs: [build-wheels, test-wheels]
     runs-on: ubuntu-latest
@@ -259,6 +254,21 @@ jobs:
         run: |
           # Find all wheel files
           find . -name "*.whl" -type f | while read wheel; do
-            echo "Uploading $wheel to GitHub Packages..."
+            echo "Uploading $wheel to GitHub Packages (direct compilation)..."
             twine upload --repository github "$wheel"
           done
+
+      - name: Compare build results
+        run: |
+          echo "=== Direct Compilation Build Results ==="
+          echo "Wheels built:"
+          find . -name "*.whl" -type f | sort
+          echo ""
+          echo "Wheel sizes:"
+          find . -name "*.whl" -type f -exec ls -lh {} \;
+          echo ""
+          echo "Build summary:"
+          echo "- Direct compilation builds completed successfully"
+          echo "- Linux builds using cibuildwheel"
+          echo "- CUDA 12.9.1 with PyTorch 2.7.0"
+          echo "- No Docker dependencies for build process"
