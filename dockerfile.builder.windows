@@ -5,7 +5,7 @@
 ARG TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0"
 
 # Stage 1: SageAttention Builder
-FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS sageattention-builder
+FROM mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022 AS sageattention-builder
 
 # Declare build arguments
 ARG CUDA_VERSION
@@ -23,13 +23,13 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install Chocolatey package manager (cached layer)
-RUN powershell -Command \
+RUN pwsh -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
-# Install Python and build tools (cached layer)
-RUN choco install -y python${PYTHON_VERSION} visualstudio2019buildtools git
+# Install Python and build tools (cached layer)  
+RUN choco install -y python --version=3.12 visualstudio2019buildtools git
 
 # Refresh environment variables
 RUN refreshenv
@@ -42,11 +42,12 @@ ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
 RUN python -m pip install --upgrade pip setuptools wheel packaging
 
 # Install PyTorch with appropriate CUDA support (cached layer)
-RUN if "%CUDA_VERSION%"=="12.8.1" ( \
-        python -m pip install torch==%TORCH_VERSION% torchvision --index-url https://download.pytorch.org/whl/cu128 \
-    ) else ( \
-        python -m pip install torch==%TORCH_VERSION% torchvision --index-url https://download.pytorch.org/whl/cu129 \
-    )
+RUN pwsh -Command \
+    if ($env:CUDA_VERSION -eq '12.8.1') { \
+        python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
+    } else { \
+        python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu129 \
+    }
 
 # Copy only dependency files first (cached layer for dependencies)
 WORKDIR C:\\build
@@ -70,15 +71,15 @@ FROM scratch AS sageattention-wheel
 COPY --from=sageattention-builder C:\\build\\SageAttention\\dist\\*.whl C:\\wheels
 
 # Stage 3: Runtime verification
-FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS sageattention-test
+FROM mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022 AS sageattention-test
 
 # Install Python for testing
-RUN powershell -Command \
+RUN pwsh -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
-RUN choco install -y python${PYTHON_VERSION}
+RUN choco install -y python --version=3.12
 
 # Refresh environment variables
 RUN refreshenv
@@ -88,11 +89,12 @@ RUN python -m venv C:\\opt\\venv
 ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
 
 # Install PyTorch and test the built wheel
-RUN if "%CUDA_VERSION%"=="12.8.1" ( \
-        python -m pip install torch==%TORCH_VERSION% torchvision --index-url https://download.pytorch.org/whl/cu128 \
-    ) else ( \
-        python -m pip install torch==%TORCH_VERSION% torchvision --index-url https://download.pytorch.org/whl/cu129 \
-    )
+RUN pwsh -Command \
+    if ($env:CUDA_VERSION -eq '12.8.1') { \
+        python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
+    } else { \
+        python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu129 \
+    }
 
 # Copy and install the built wheel
 COPY --from=sageattention-builder C:\\build\\SageAttention\\dist\\*.whl C:\\tmp
