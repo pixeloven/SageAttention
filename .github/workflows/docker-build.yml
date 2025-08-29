@@ -40,6 +40,9 @@ jobs:
             cuda-minor: "9"
             torch-minor: "7"
             torch-patch: "0"
+            dockerfile: "dockerfile.builder.linux"
+            build-target: "wheel-linux"
+            test-target: "test-linux"
           # Linux builds - PyTorch 2.8
           - platform: linux
             python-version: "3.12"
@@ -49,6 +52,9 @@ jobs:
             cuda-minor: "9"
             torch-minor: "8"
             torch-patch: "0"
+            dockerfile: "dockerfile.builder.linux"
+            build-target: "wheel-linux"
+            test-target: "test-linux"
           # Windows builds - PyTorch 2.7
           - platform: windows
             python-version: "3.12"
@@ -58,6 +64,9 @@ jobs:
             cuda-minor: "9"
             torch-minor: "7"
             torch-patch: "0"
+            dockerfile: "dockerfile.builder.windows"
+            build-target: "wheel-windows"
+            test-target: "test-windows"
           # Windows builds - PyTorch 2.8
           - platform: windows
             python-version: "3.12"
@@ -67,6 +76,9 @@ jobs:
             cuda-minor: "9"
             torch-minor: "8"
             torch-patch: "0"
+            dockerfile: "dockerfile.builder.windows"
+            build-target: "wheel-windows"
+            test-target: "test-windows"
 
     steps:
       - name: Checkout repository
@@ -88,14 +100,7 @@ jobs:
 
       - name: Build wheel using docker-bake
         run: |
-          # Set platform-specific build target
-          if [[ "${{ matrix.platform }}" == "windows" ]]; then
-            BUILD_TARGET="wheel-windows"
-          else
-            BUILD_TARGET="wheel-linux"
-          fi
-          
-          docker buildx bake --file docker-bake.hcl $BUILD_TARGET \
+          docker buildx bake --file docker-bake.hcl ${{ matrix.build-target }} \
             --set "*.args.PLATFORM=${{ matrix.platform }}" \
             --set "*.args.CUDA_VERSION=${{ matrix.cuda-version }}" \
             --set "*.args.PYTHON_VERSION=${{ matrix.python-version }}" \
@@ -129,14 +134,7 @@ jobs:
       # Test wheel using Docker
       - name: Test wheel using Docker
         run: |
-          # Set platform-specific test target
-          if [[ "${{ matrix.platform }}" == "windows" ]]; then
-            TEST_TARGET="test-windows"
-          else
-            TEST_TARGET="test-linux"
-          fi
-          
-          docker buildx bake --file docker-bake.hcl $TEST_TARGET \
+          docker buildx bake --file docker-bake.hcl ${{ matrix.test-target }} \
             --set "*.args.PLATFORM=${{ matrix.platform }}" \
             --set "*.args.CUDA_VERSION=${{ matrix.cuda-version }}" \
             --set "*.args.PYTHON_VERSION=${{ matrix.python-version }}" \
@@ -228,3 +226,4 @@ jobs:
           echo "- All platforms supported: Linux and Windows"
           echo "- CUDA 12.9.1 with PyTorch 2.7.0 and 2.8.0"
           echo "- Consistent builds using Docker containers"
+          echo "- Platform-specific Dockerfiles: dockerfile.builder.linux and dockerfile.builder.windows"

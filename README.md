@@ -1,162 +1,205 @@
-# [SageAttention](https://github.com/thu-ml/SageAttention) Fork - Build System Integration
+# SageAttention
 
-This repository is a fork of the original SageAttention project that provides enhanced build system integration and automated CI/CD pipeline for distributing pre-built Python wheels across multiple Python, PyTorch, and CUDA versions.
-
-## What is SageAttention?
-
-SageAttention is an efficient and accurate attention mechanism that uses **low-bit quantization** to significantly reduce memory usage and increase speed while maintaining accuracy. It provides:
-
-- **INT8 quantization** for Query and Key tensors
-- **FP8/FP16 quantization** for Value tensors  
-- **Hardware-optimized kernels** for different GPU architectures (SM80, SM89, SM90)
-- **Plug-and-play integration** - easily replace `scaled_dot_product_attention` in existing models
-- **Support for multiple tensor layouts** (HND, NHD)
-- **Variable-length sequence support**
-
-## What This Fork Adds
+SageAttention is an efficient and accurate attention mechanism that uses **low-bit quantization** to reduce memory usage and computational cost while maintaining high accuracy.
 
 This fork extends the original SageAttention project with:
 
-1. **Unified Build System** - Simple `python local-build.py` commands for all build needs
-2. **Hybrid Build Approach** - Docker for consistency, cibuildwheel for performance
+1. **Docker-based Build System** - Consistent builds across different environments
+2. **Multi-platform Support** - Linux and Windows builds with Python 3.12 focus
 3. **Automated CI/CD Pipeline** - Builds wheels for multiple configurations automatically
 4. **GitHub Packages Distribution** - Pre-built wheels available for easy installation
-5. **Multi-platform Support** - Linux and Windows builds with Python 3.12 focus
+5. **Unified Docker Bake Configuration** - Simple commands for all build needs
 
 ## Build System
 
-Our hybrid build system combines the best of both approaches:
+Our Docker-based build system provides consistent, reproducible builds across platforms:
 
-- **Docker builds** for development and testing (consistent environment)
-- **cibuildwheel builds** for CI/CD and production (faster builds)
+- **Linux containers**: Ubuntu 24.04 + CUDA 12.9.1 + cuDNN
+- **Windows containers**: Windows Server Core 2022 + Chocolatey + Visual Studio Build Tools
+- **Multi-platform support**: Build for both Linux and Windows simultaneously
 
 The system automatically builds wheels for:
 - **Platforms**: Linux and Windows
 - **Python**: 3.12 (primary support)
-- **PyTorch**: 2.6.0, 2.7.0, 2.8.0
-- **CUDA**: 12.8, 12.9
+- **PyTorch**: 2.7.0, 2.8.0
+- **CUDA**: 12.9.1
 - **GPU Architectures**: 8.0, 8.6, 8.9, 9.0, 12.0
 
 ### Supported Build Configurations
 
 | PyTorch Version | CUDA Version | Platform | Package Name Example |
 |----------------|--------------|----------|---------------------|
-| 2.6.0 | 12.8 | Linux | `sageattention-2.2.0+cu128torch2.6.0-cp312-cp312-linux_x86_64.whl` |
-| 2.6.0 | 12.8 | Windows | `sageattention-2.2.0+cu128torch2.6.0-cp312-cp312-win_amd64.whl` |
-| 2.7.0 | 12.9 | Linux | `sageattention-2.2.0+cu129torch2.7.0-cp312-cp312-linux_x86_64.whl` |
-| 2.7.0 | 12.9 | Windows | `sageattention-2.2.0+cu129torch2.7.0-cp312-cp312-win_amd64.whl` |
-| 2.8.0 | 12.9 | Linux | `sageattention-2.2.0+cu129torch2.8.0-cp312-cp312-linux_x86_64.whl` |
-| 2.8.0 | 12.9 | Windows | `sageattention-2.2.0+cu129torch2.8.0-cp312-cp312-win_amd64.whl` |
+| 2.7.0 | 12.9.1 | Linux | `sageattention-2.2.0+cu9torch7.0-cp312-cp312-manylinux_x86_64.whl` |
+| 2.7.0 | 12.9.1 | Windows | `sageattention-2.2.0+cu9torch7.0-cp312-cp312-win_amd64.whl` |
+| 2.8.0 | 12.9.1 | Linux | `sageattention-2.2.0+cu9torch8.0-cp312-cp312-manylinux_x86_64.whl` |
+| 2.8.0 | 12.9.1 | Windows | `sageattention-2.2.0+cu9torch8.0-cp312-cp312-win_amd64.whl` |
 
 **Package Naming Convention:**
 ```
-sageattention-{version}+cu{minor}torch{major}.{patch}-cp{python_version}-{platform}_{arch}.whl
+sageattention-{version}+cu{cuda_minor}torch{torch_minor}.{torch_patch}-cp{python_version}-cp{python_version}-{platform_suffix}.whl
 ```
 
 **Components:**
 - `{version}`: SageAttention version (e.g., 2.2.0)
-- `cu{minor}`: CUDA minor version (128 for 12.8, 129 for 12.9)
-- `torch{major}.{patch}`: PyTorch version (2.6.0, 2.7.0, 2.8.0)
+- `cu{cuda_minor}`: CUDA minor version (9 for 12.9)
+- `torch{torch_minor}.{torch_patch}`: PyTorch version (7.0, 8.0)
 - `cp{python_version}`: Python version (cp312 for Python 3.12)
-- `{platform}_{arch}`: Platform and architecture (linux_x86_64, win_amd64)
+- `{platform_suffix}`: Platform suffix (manylinux_x86_64, win_amd64)
 
 ### Quick Build Commands
 
 ```bash
-# Development build (Docker - consistent)
-python local-build.py docker
+# Build Linux wheels
+docker buildx bake --file docker-bake.hcl wheel-linux
 
-# Production build (cibuildwheel - fast)
-python local-build.py cibuildwheel
+# Build Windows wheels
+docker buildx bake --file docker-bake.hcl wheel-windows
 
-# Test wheels
-python local-build.py test
+# Build for both platforms
+docker buildx bake --file docker-bake.hcl multi-platform
+
+# Test Linux wheels
+docker buildx bake --file docker-bake.hcl test-linux
+
+# Test Windows wheels
+docker buildx bake --file docker-bake.hcl test-windows
 ```
 
 ## Available Packages
 
-Once the CI pipeline completes successfully, pre-built wheels are available in the [GitHub Packages](https://github.com/pixeloven/SageAttention/packages) section of this repository.
-
-## Building Locally
+Once the CI pipeline completes successfully, pre-built wheels are available in the [GitHub Packages repository](https://github.com/pixeloven/SageAttention/packages).
 
 ### Prerequisites
 
-- CUDA 12.0 or higher
-- Python 3.12 (primary support)
+- Docker with Buildx support
+- Multi-platform builder configured
+- CUDA 12.9.1 or higher
+- Python 3.12
 - PyTorch with CUDA support
 - Compatible GPU (compute capability 8.0+)
 
-### Quick Build Options
+### Setup Multi-platform Builder
 
-#### Option 1: Docker Build (Recommended for Development)
 ```bash
-# Build using Docker (consistent environment)
-docker build -f dockerfile.builder -t sageattention-dev .
+# Create multi-platform builder
+docker buildx create --name multiplatform --driver docker-container --use
 
-# Or use the unified build script
-python local-build.py docker
+# Bootstrap the builder
+docker buildx inspect --bootstrap
 ```
 
-#### Option 2: cibuildwheel Build (Recommended for Production)
+### Build Options
+
+#### Option 1: Docker Bake (Recommended)
 ```bash
-# Install cibuildwheel
-pip install cibuildwheel
+# Build Linux wheels
+docker buildx bake --file docker-bake.hcl wheel-linux
 
-# Build for current platform
-python local-build.py cibuildwheel
+# Build Windows wheels
+docker buildx bake --file docker-bake.hcl wheel-windows
 
-# Build for specific platform
-python local-build.py cibuildwheel --platform linux
+# Build both platforms
+docker buildx bake --file docker-bake.hcl multi-platform
 ```
 
-#### Option 3: Direct Installation
+#### Option 2: Direct Docker Build
 ```bash
-# Install dependencies
-pip install torch==2.7.0+cu129 --index-url https://download.pytorch.org/whl/cu129
+# Build Linux image
+docker build -f dockerfile.builder.linux -t sageattention-linux .
 
-# Install SageAttention
-python setup.py install
+# Build Windows image
+docker build -f dockerfile.builder.windows -t sageattention-windows .
 ```
 
 ### Environment Variables
 
 Set these for custom builds:
 ```bash
-export TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0 12.0"
-export CUDA_MINOR_VERSION="9"
-export TORCH_MINOR_VERSION="8"
+export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0"
+export CUDA_VERSION="12.9.1"
+export PYTHON_VERSION="3.12"
+export TORCH_MINOR_VERSION="7"
 export TORCH_PATCH_VERSION="0"
 ```
 
 ### Testing Built Wheels
 
 ```bash
-# Test wheels using Docker (maintains consistency)
-python local-build.py test
+# Test Linux wheels
+docker buildx bake --file docker-bake.hcl test-linux
+
+# Test Windows wheels
+docker buildx bake --file docker-bake.hcl test-windows
 ```
 
 ### Troubleshooting
 
 **Common Issues:**
 
-1. **CUDA not found**: Ensure `CUDA_HOME` is set and CUDA toolkit is installed
-2. **PyTorch version mismatch**: Install the correct PyTorch version for your CUDA
-3. **Build failures on Windows**: Use Developer Command Prompt and ensure MSVC is in PATH
-4. **Memory issues**: Reduce parallel builds with `export EXT_PARALLEL=2`
+1. **Platform not supported**: Ensure you have a multi-platform builder
+2. **Windows build fails**: Check that Windows containers are enabled
+3. **Path issues**: Verify Dockerfile syntax for the target platform
+4. **Cache issues**: Clear Docker build cache if builds are inconsistent
 
 **Debug Commands:**
 ```bash
-# Check environment
-python -c "import torch; print(f'PyTorch: {torch.__version__}, CUDA: {torch.version.cuda}')"
-nvcc --version
-nvidia-smi
+# Check available targets
+docker buildx bake --file docker-bake.hcl --list targets
+
+# Validate configuration
+docker buildx bake --file docker-bake.hcl --print wheel-linux
+
+# Build with verbose output
+docker buildx bake --file docker-bake.hcl wheel-linux --progress=plain
 ```
 
 ## Using in Downstream Projects
 
-### Installation from GitHub Packages
+### From GitHub Packages
 
 ```bash
 # Install from GitHub Packages
-pip install sageattention --index-url https://github.com/pixeloven/SageAttention/packages/pypi/simple/
+pip install sageattention --index-url https://github.com/pixeloven/SageAttention/packages/pypi
 ```
+
+### From Local Wheels
+
+```bash
+# Install from local wheel
+pip install ./wheels/sageattention-2.2.0+cu9torch7.0-cp312-cp312-manylinux_x86_64.whl
+```
+
+## Development
+
+### Local Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/pixeloven/SageAttention.git
+cd SageAttention
+
+# Install in development mode
+pip install -e .
+
+# Run tests
+python -m pytest tests/
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test with Docker builds
+5. Submit a pull request
+
+## License
+
+This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Original SageAttention implementation
+- NVIDIA CUDA toolkit and cuDNN
+- PyTorch team for the excellent framework
+- Docker community for containerization tools
