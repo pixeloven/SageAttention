@@ -192,8 +192,8 @@ Examples:
     cibuildwheel_parser.add_argument('--only', help='Build only specific wheel tags')
     cibuildwheel_parser.add_argument('--cuda-arch', default='8.0 8.6 8.9 9.0 12.0',
                                    help='CUDA architectures to target')
-    cibuildwheel_parser.add_argument('--cuda-minor', default='13',
-                                   help='CUDA minor version (9 for 12.9, 13 for 13.0)')
+    cibuildwheel_parser.add_argument('--cuda-minor', default='9',
+                                   help='CUDA minor version (8 for 12.8, 9 for 12.9)')
     cibuildwheel_parser.add_argument('--torch-minor', default='8',
                                    help='PyTorch minor version')
     cibuildwheel_parser.add_argument('--torch-patch', default='0',
@@ -203,8 +203,8 @@ Examples:
     test_parser = subparsers.add_parser('test', help='Test wheels using Docker')
     test_parser.add_argument('--cuda-arch', default='8.0 8.6 8.9 9.0 12.0',
                             help='CUDA architectures to target')
-    test_parser.add_argument('--cuda-minor', default='13',
-                            help='CUDA minor version (9 for 12.9, 13 for 13.0)')
+    test_parser.add_argument('--cuda-minor', default='9',
+                            help='CUDA minor version (8 for 12.8, 9 for 12.9)')
     test_parser.add_argument('--torch-minor', default='8',
                             help='PyTorch minor version')
     test_parser.add_argument('--torch-patch', default='0',

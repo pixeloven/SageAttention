@@ -23,7 +23,7 @@ variable "TORCH_PATCH_VERSION" {
 }
 
 variable "CUDA_MINOR_VERSION" {
-  default = "13"
+  default = "9"
 }
 
 group "default" {

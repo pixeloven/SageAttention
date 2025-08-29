@@ -1,4 +1,4 @@
-name: Unified Build and Publish SageAttention Wheels
+name: SageAttention Wheels
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             python-version: "3.12"
-            cuda-version: "12.9"
+            cuda-version: "12.9.1"
             torch-version: "2.7.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
@@ -44,17 +44,17 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             python-version: "3.12"
-            cuda-version: "13.0"
+            cuda-version: "12.9.1"
             torch-version: "2.8.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
-            cuda-minor: "13"
+            cuda-minor: "9"
             torch-minor: "8"
             torch-patch: "0"
           # Windows builds
           - os: windows-latest
             platform: windows
             python-version: "3.12"
-            cuda-version: "12.9"
+            cuda-version: "12.9.1"
             torch-version: "2.7.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
@@ -64,10 +64,10 @@ jobs:
           - os: windows-latest
             platform: windows
             python-version: "3.12"
-            cuda-version: "13.0"
+            cuda-version: "12.9.1"
             torch-version: "2.8.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
-            cuda-minor: "13"
+            cuda-minor: "9"
             torch-minor: "8"
             torch-patch: "0"
 
@@ -84,7 +84,7 @@ jobs:
 
       # Platform-specific setup
       - name: Set up CUDA (Linux/Windows)
-        uses: Jimver/cuda-toolkit@v0.2.22
+        uses: Jimver/cuda-toolkit@v0.2.27
         with:
           cuda: ${{ matrix.cuda-version }}
 

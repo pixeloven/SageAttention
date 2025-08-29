@@ -33,9 +33,32 @@ Our hybrid build system combines the best of both approaches:
 The system automatically builds wheels for:
 - **Platforms**: Linux and Windows
 - **Python**: 3.12 (primary support)
-- **PyTorch**: 2.7.0, 2.8.0
-- **CUDA**: 12.9, 13.0
+- **PyTorch**: 2.6.0, 2.7.0, 2.8.0
+- **CUDA**: 12.8, 12.9
 - **GPU Architectures**: 8.0, 8.6, 8.9, 9.0, 12.0
+
+### Supported Build Configurations
+
+| PyTorch Version | CUDA Version | Platform | Package Name Example |
+|----------------|--------------|----------|---------------------|
+| 2.6.0 | 12.8 | Linux | `sageattention-2.2.0+cu128torch2.6.0-cp312-cp312-linux_x86_64.whl` |
+| 2.6.0 | 12.8 | Windows | `sageattention-2.2.0+cu128torch2.6.0-cp312-cp312-win_amd64.whl` |
+| 2.7.0 | 12.9 | Linux | `sageattention-2.2.0+cu129torch2.7.0-cp312-cp312-linux_x86_64.whl` |
+| 2.7.0 | 12.9 | Windows | `sageattention-2.2.0+cu129torch2.7.0-cp312-cp312-win_amd64.whl` |
+| 2.8.0 | 12.9 | Linux | `sageattention-2.2.0+cu129torch2.8.0-cp312-cp312-linux_x86_64.whl` |
+| 2.8.0 | 12.9 | Windows | `sageattention-2.2.0+cu129torch2.8.0-cp312-cp312-win_amd64.whl` |
+
+**Package Naming Convention:**
+```
+sageattention-{version}+cu{minor}torch{major}.{patch}-cp{python_version}-{platform}_{arch}.whl
+```
+
+**Components:**
+- `{version}`: SageAttention version (e.g., 2.2.0)
+- `cu{minor}`: CUDA minor version (128 for 12.8, 129 for 12.9)
+- `torch{major}.{patch}`: PyTorch version (2.6.0, 2.7.0, 2.8.0)
+- `cp{python_version}`: Python version (cp312 for Python 3.12)
+- `{platform}_{arch}`: Platform and architecture (linux_x86_64, win_amd64)
 
 ### Quick Build Commands
 
@@ -100,7 +123,7 @@ python setup.py install
 Set these for custom builds:
 ```bash
 export TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0 12.0"
-export CUDA_MINOR_VERSION="13"
+export CUDA_MINOR_VERSION="9"
 export TORCH_MINOR_VERSION="8"
 export TORCH_PATCH_VERSION="0"
 ```
