@@ -53,8 +53,8 @@ jobs:
             platform: windows
             python-version: "3.12"
             torch-version: "2.7.0"
-            cuda-arch: "8.0 8.6 8.9 9.0 12.0"
-            cuda-minor: "9"
+            cuda-arch: "8.0 8.6 8.9 9.0"
+            cuda-minor: "4"
             torch-minor: "7"
             torch-patch: "0"
           # Windows builds - PyTorch 2.8
@@ -62,8 +62,8 @@ jobs:
             platform: windows
             python-version: "3.12"
             torch-version: "2.8.0"
-            cuda-arch: "8.0 8.6 8.9 9.0 12.0"
-            cuda-minor: "9"
+            cuda-arch: "8.0 8.6 8.9 9.0"
+            cuda-minor: "4"
             torch-minor: "8"
             torch-patch: "0"
 
@@ -92,11 +92,16 @@ jobs:
       - name: Set up CUDA (Windows)
         if: matrix.platform == 'windows'
         run: |
-          # Windows runners have CUDA pre-installed
-          echo "Using pre-installed CUDA on Windows runner"
-          echo "CUDA_HOME=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9" >> $GITHUB_ENV
-          echo "CUDA_ROOT=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9" >> $GITHUB_ENV
-          echo "PATH=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin;$PATH" >> $GITHUB_ENV
+          # Windows runners don't have CUDA pre-installed, so we'll use a different approach
+          echo "Windows runners don't have CUDA pre-installed, using CUDA toolkit action"
+          
+      - name: Set up CUDA Toolkit (Windows)
+        if: matrix.platform == 'windows'
+        uses: Jimver/cuda-toolkit@v0.2.22
+        with:
+          cuda: "12.4.0"
+          use-github-cache: true
+          use-local-cache: true
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
