@@ -64,18 +64,12 @@ jobs:
           iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
           
           # Try to install CUDA using chocolatey
-          try {
-            choco install cuda -y
-            echo "CUDA installed successfully"
-            echo "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" >> $GITHUB_ENV
-            echo "CUDA_ROOT=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" >> $GITHUB_ENV
-            echo "PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin;$PATH" >> $GITHUB_ENV
-          } catch {
-            echo "CUDA installation failed, proceeding without CUDA"
-            echo "CUDA_HOME=" >> $GITHUB_ENV
-            echo "CUDA_ROOT=" >> $GITHUB_ENV
-            echo "PATH=$PATH" >> $GITHUB_ENV
-          }
+          choco install cuda -y
+          
+          # Set environment variables regardless of installation result
+          echo "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" >> $GITHUB_ENV
+          echo "CUDA_ROOT=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" >> $GITHUB_ENV
+          echo "PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin;$PATH" >> $GITHUB_ENV
 
       - name: Set up MSVC (Windows)
         uses: ilammy/msvc-dev-cmd@v1
@@ -88,8 +82,19 @@ jobs:
           echo "PATH: $env:PATH"
           echo "Environment variables:"
           Get-ChildItem Env: | Where-Object { $_.Name -like "*CUDA*" } | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
-          Get-Command nvcc -ErrorAction SilentlyContinue | Select-Object Source
-          nvcc --version 2>$null || echo "nvcc not found - Windows builds may proceed without CUDA"
+          
+          # Check if nvcc is available
+          try {
+            $nvccPath = Get-Command nvcc -ErrorAction SilentlyContinue
+            if ($nvccPath) {
+              Write-Host "nvcc found at: $($nvccPath.Source)"
+              nvcc --version
+            } else {
+              Write-Host "nvcc not found - Windows builds may proceed without CUDA"
+            }
+          } catch {
+            Write-Host "nvcc not found - Windows builds may proceed without CUDA"
+          }
 
       # Install cibuildwheel
       - name: Install cibuildwheel
@@ -113,20 +118,24 @@ jobs:
       # Build wheels using cibuildwheel
       - name: Build wheels using cibuildwheel
         run: |
-          $env:CIBW_BUILD="cp312-win_amd64"
-          $env:CIBW_BEFORE_BUILD="python update_pyproject.py"
-          $env:CIBW_BEFORE_ALL="pip install --upgrade pip setuptools wheel packaging"
-          
-          # Set CUDA architecture list based on availability
+          # Check if CUDA is actually available
           if (Test-Path "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA") {
+            $env:CIBW_BUILD="cp312-win_amd64"
+            $env:CIBW_BEFORE_BUILD="python update_pyproject.py"
+            $env:CIBW_BEFORE_ALL="pip install --upgrade pip setuptools wheel packaging"
             $env:TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0 12.0"
             echo "CUDA found, building with GPU support"
+            
+            cibuildwheel --platform windows --output-dir wheelhouse .
           } else {
-            $env:TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0"
-            echo "CUDA not found, building with CPU fallback"
+            echo "CUDA not found on Windows runner"
+            echo "SageAttention requires CUDA for compilation - skipping Windows build"
+            echo "Windows builds are currently not supported due to CUDA installation issues"
+            
+            # Create a placeholder file to indicate the build was attempted
+            New-Item -ItemType Directory -Force -Path "wheelhouse"
+            "SageAttention Windows builds require CUDA installation which is not available on GitHub Windows runners." | Out-File -FilePath "wheelhouse\windows_build_not_supported.txt" -Encoding UTF8
           }
-          
-          cibuildwheel --platform windows --output-dir wheelhouse .
 
       # Upload wheel artifacts
       - name: Upload wheel artifacts
@@ -169,14 +178,20 @@ jobs:
       # Test wheels
       - name: Test wheels
         run: |
-          # Install PyTorch
-          pip install torch==${{ matrix.torch-version }} torchvision --index-url https://download.pytorch.org/whl/cu${{ matrix.cuda-minor-version }}9
-          
-          # Install and test the built wheel
-          Get-ChildItem -Filter "*.whl" -Recurse | Select-Object -First 1 | ForEach-Object {
-            Write-Host "Testing wheel: $($_.Name)"
-            pip install $_.FullName
-            python -c "import sageattention; print('SageAttention imported successfully')"
+          # Check if wheels were built
+          $wheels = Get-ChildItem -Filter "*.whl" -Recurse
+          if ($wheels) {
+            # Install PyTorch
+            pip install torch==${{ matrix.torch-version }} torchvision --index-url https://download.pytorch.org/whl/cu${{ matrix.cuda-minor-version }}9
+            
+            # Install and test the built wheel
+            $wheels | Select-Object -First 1 | ForEach-Object {
+              Write-Host "Testing wheel: $($_.Name)"
+              pip install $_.FullName
+              python -c "import sageattention; print('SageAttention imported successfully')"
+            }
+          } else {
+            Write-Host "No wheels found to test - Windows builds not supported"
           }
 
   # Job 3: Publish Windows wheels
@@ -217,22 +232,37 @@ jobs:
 
       - name: Publish to GitHub Packages
         run: |
-          find . -name "*.whl" -type f | while read wheel; do
-            echo "Uploading $wheel to GitHub Packages (Windows direct compilation)..."
-            twine upload --repository github "$wheel"
-          done
+          # Check if wheels were built
+          if find . -name "*.whl" -type f | grep -q .; then
+            find . -name "*.whl" -type f | while read wheel; do
+              echo "Uploading $wheel to GitHub Packages (Windows direct compilation)..."
+              twine upload --repository github "$wheel"
+            done
+          else
+            echo "No wheels to publish - Windows builds not supported due to CUDA requirements"
+          fi
 
       - name: Compare build results
         run: |
           echo "=== Windows Direct Compilation Build Results ==="
           echo "Wheels built:"
-          find . -name "*.whl" -type f | sort
-          echo ""
-          echo "Wheel sizes:"
-          find . -name "*.whl" -type f -exec ls -lh {} \;
-          echo ""
-          echo "Build summary:"
-          echo "- Windows direct compilation builds completed successfully"
-          echo "- Using cibuildwheel for consistent builds"
-          echo "- CUDA 12.9.1 with PyTorch 2.7.0 and 2.8.0"
-          echo "- No Docker dependencies for build process"
+          if find . -name "*.whl" -type f | grep -q .; then
+            find . -name "*.whl" -type f | sort
+            echo ""
+            echo "Wheel sizes:"
+            find . -name "*.whl" -type f -exec ls -lh {} \;
+            echo ""
+            echo "Build summary:"
+            echo "- Windows direct compilation builds completed successfully"
+            echo "- Using cibuildwheel for consistent builds"
+            echo "- CUDA 12.9.1 with PyTorch 2.7.0 and 2.8.0"
+            echo "- No Docker dependencies for build process"
+          else
+            echo "No wheels built"
+            echo ""
+            echo "Build summary:"
+            echo "- Windows builds not supported due to CUDA installation issues"
+            echo "- SageAttention requires CUDA for compilation"
+            echo "- GitHub Windows runners do not have CUDA pre-installed"
+            echo "- Consider using Linux builds or Docker-based builds for Windows"
+          fi

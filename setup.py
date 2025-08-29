@@ -47,9 +47,33 @@ ABI = 1 if torch._C._GLIBCXX_USE_CXX11_ABI else 0
 CXX_FLAGS += [f"-D_GLIBCXX_USE_CXX11_ABI={ABI}"]
 NVCC_FLAGS_COMMON += [f"-D_GLIBCXX_USE_CXX11_ABI={ABI}"]
 
+# Try to find CUDA_HOME if it's not set
 if CUDA_HOME is None:
-    raise RuntimeError(
-        "Cannot find CUDA_HOME. CUDA must be available to build the package.")
+    # Check common CUDA installation paths
+    cuda_paths = [
+        "/usr/local/cuda",
+        "/usr/local/cuda-12.9",
+        "/usr/local/cuda-12.8",
+        "/usr/local/cuda-12.4",
+        "/usr/local/cuda-12.3",
+        "/usr/local/cuda-12.0",
+        os.getenv("CUDA_HOME"),
+        os.getenv("CUDA_ROOT"),
+    ]
+    
+    for cuda_path in cuda_paths:
+        if cuda_path and os.path.exists(cuda_path):
+            os.environ["CUDA_HOME"] = cuda_path
+            print(f"Found CUDA at: {cuda_path}")
+            break
+    else:
+        raise RuntimeError(
+            "Cannot find CUDA_HOME. CUDA must be available to build the package. "
+            "Tried paths: /usr/local/cuda, /usr/local/cuda-12.9, /usr/local/cuda-12.8, "
+            "/usr/local/cuda-12.4, /usr/local/cuda-12.3, /usr/local/cuda-12.0")
+    
+    # Update CUDA_HOME variable
+    CUDA_HOME = os.environ["CUDA_HOME"]
 
 def get_nvcc_cuda_version(cuda_dir: str) -> Version:
     """Get the CUDA version from nvcc.
