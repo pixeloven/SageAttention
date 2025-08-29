@@ -34,7 +34,6 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             python-version: "3.12"
-            cuda-version: "12.9.1"
             torch-version: "2.7.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
@@ -44,7 +43,6 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             python-version: "3.12"
-            cuda-version: "12.9.1"
             torch-version: "2.8.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
@@ -54,7 +52,6 @@ jobs:
           - os: windows-latest
             platform: windows
             python-version: "3.12"
-            cuda-version: "12.9.1"
             torch-version: "2.7.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
@@ -64,7 +61,6 @@ jobs:
           - os: windows-latest
             platform: windows
             python-version: "3.12"
-            cuda-version: "12.9.1"
             torch-version: "2.8.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
             cuda-minor: "9"
@@ -84,11 +80,23 @@ jobs:
 
       # Platform-specific setup
       - name: Set up CUDA (Linux/Windows)
-        uses: Jimver/cuda-toolkit@v0.2.22
-        with:
-          cuda: ${{ matrix.cuda-version }}
-          use-github-cache: false
-          use-local-cache: false
+        if: matrix.platform == 'linux'
+        run: |
+          # Ubuntu runners have CUDA pre-installed
+          echo "Using pre-installed CUDA on Ubuntu runner"
+          echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+          echo "CUDA_ROOT=/usr/local/cuda" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PATH=/usr/local/cuda/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Set up CUDA (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          # Windows runners have CUDA pre-installed
+          echo "Using pre-installed CUDA on Windows runner"
+          echo "CUDA_HOME=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9" >> $GITHUB_ENV
+          echo "CUDA_ROOT=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9" >> $GITHUB_ENV
+          echo "PATH=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin;$PATH" >> $GITHUB_ENV
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
@@ -98,6 +106,7 @@ jobs:
       - name: Verify CUDA installation
         run: |
           echo "CUDA_HOME: $CUDA_HOME"
+          echo "CUDA_ROOT: $CUDA_ROOT"
           echo "PATH: $PATH"
           echo "Environment variables:"
           env | grep -i cuda || echo "No CUDA environment variables found"
@@ -157,12 +166,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cuda-version: [12.9.1]
         python-version: [3.12]
         torch-version: [2.7.0]
         include:
-          - cuda-version: 12.9.1
-            python-version: 3.12
+          - python-version: 3.12
             cuda-arch-list: "7.0;7.5;8.0;8.6;8.9;9.0"
             torch-minor-version: 7
             torch-patch-version: 0
