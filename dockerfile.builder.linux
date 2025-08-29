@@ -1,11 +1,13 @@
 # SageAttention Builder - Multi-platform multi-stage build for SageAttention wheels
 # Supports Linux with multiple PyTorch versions
 
+# Declare build arguments that are used in FROM statements
+ARG CUDA_VERSION
+
 # Use NVIDIA CUDA base image with cuDNN development libraries
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu24.04 AS sageattention-builder
 
-# Declare build arguments
-ARG CUDA_VERSION
+# Declare remaining build arguments
 ARG PYTHON_VERSION
 ARG TORCH_VERSION
 ARG TORCH_CUDA_ARCH_LIST
@@ -77,6 +79,7 @@ COPY --from=sageattention-builder /build/SageAttention/dist/*.whl ./
 RUN ls -la && echo "Wheel extracted successfully"
 
 # Stage 3: Runtime verification
+# CUDA_VERSION ARG is already declared above
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu24.04 AS sageattention-test
 
 # Install Python and PyTorch for testing
