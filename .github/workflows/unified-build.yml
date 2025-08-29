@@ -92,21 +92,19 @@ jobs:
       - name: Set up CUDA (Windows)
         if: matrix.platform == 'windows'
         run: |
-          # Download and install CUDA 12.9 using chocolatey
-          echo "Installing CUDA 12.9 on Windows using chocolatey"
+          # Install CUDA using winget (Windows Package Manager)
+          echo "Installing CUDA on Windows using winget"
           
-          # Install chocolatey if not available
-          Set-ExecutionPolicy Bypass -Scope Process -Force
-          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+          # Install CUDA using winget
+          winget install NVIDIA.CUDA --version 12.9.0 --accept-package-agreements --accept-source-agreements
           
-          # Install CUDA 12.9 using chocolatey
-          choco install cuda --version=12.9.0 -y
+          # Wait for installation to complete
+          Start-Sleep -Seconds 30
           
-          # Set environment variables
-          echo "CUDA_HOME=C:\ProgramData\chocolatey\lib\cuda\tools\cuda\v12.9" >> $GITHUB_ENV
-          echo "CUDA_ROOT=C:\ProgramData\chocolatey\lib\cuda\tools\cuda\v12.9" >> $GITHUB_ENV
-          echo "PATH=C:\ProgramData\chocolatey\lib\cuda\tools\cuda\v12.9\bin;$PATH" >> $GITHUB_ENV
+          # Set environment variables for CUDA 12.9
+          echo "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9" >> $GITHUB_ENV
+          echo "CUDA_ROOT=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9" >> $GITHUB_ENV
+          echo "PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9\bin;$PATH" >> $GITHUB_ENV
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
