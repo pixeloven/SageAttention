@@ -89,6 +89,7 @@ jobs:
           cuda: ${{ matrix.cuda-version }}
           use-github-cache: false
           use-local-cache: false
+          method: conda
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
@@ -99,7 +100,10 @@ jobs:
         run: |
           echo "CUDA_HOME: $CUDA_HOME"
           echo "PATH: $PATH"
-          nvcc --version || echo "nvcc not found in PATH"
+          echo "Environment variables:"
+          env | grep -i cuda || echo "No CUDA environment variables found"
+          which nvcc || echo "nvcc not found in PATH"
+          nvcc --version || echo "nvcc not found or not working"
 
       # Install cibuildwheel
       - name: Install cibuildwheel
