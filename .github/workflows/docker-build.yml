@@ -88,13 +88,21 @@ jobs:
 
       - name: Build wheel using docker-bake
         run: |
-          docker buildx bake --file docker-bake.hcl \
+          # Set platform-specific build target
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            BUILD_TARGET="wheel-windows"
+          else
+            BUILD_TARGET="wheel-linux"
+          fi
+          
+          docker buildx bake --file docker-bake.hcl $BUILD_TARGET \
+            --set "*.args.PLATFORM=${{ matrix.platform }}" \
             --set "*.args.CUDA_VERSION=${{ matrix.cuda-version }}" \
             --set "*.args.PYTHON_VERSION=${{ matrix.python-version }}" \
             --set "*.args.TORCH_CUDA_ARCH_LIST=${{ matrix.cuda-arch }}" \
             --set "*.args.TORCH_MINOR_VERSION=${{ matrix.torch-minor }}" \
             --set "*.args.TORCH_PATCH_VERSION=${{ matrix.torch-patch }}" \
-            --set "*.args.CUDA_MINOR_VERSION=${{ matrix.cuda-minor }}"
+            --set "*.args.CUDA_SUFFIX=129"
 
       - name: Rename wheel with proper naming convention
         run: |
@@ -121,13 +129,21 @@ jobs:
       # Test wheel using Docker
       - name: Test wheel using Docker
         run: |
-          docker buildx bake --file docker-bake.hcl test \
+          # Set platform-specific test target
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            TEST_TARGET="test-windows"
+          else
+            TEST_TARGET="test-linux"
+          fi
+          
+          docker buildx bake --file docker-bake.hcl $TEST_TARGET \
+            --set "*.args.PLATFORM=${{ matrix.platform }}" \
             --set "*.args.CUDA_VERSION=${{ matrix.cuda-version }}" \
             --set "*.args.PYTHON_VERSION=${{ matrix.python-version }}" \
             --set "*.args.TORCH_CUDA_ARCH_LIST=${{ matrix.cuda-arch }}" \
             --set "*.args.TORCH_MINOR_VERSION=${{ matrix.torch-minor }}" \
             --set "*.args.TORCH_PATCH_VERSION=${{ matrix.torch-patch }}" \
-            --set "*.args.CUDA_MINOR_VERSION=${{ matrix.cuda-minor }}"
+            --set "*.args.CUDA_SUFFIX=129"
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
