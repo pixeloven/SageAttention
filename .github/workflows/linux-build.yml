@@ -1,0 +1,216 @@
+name: SageAttention Linux Wheels - Direct Compilation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      torch_version:
+        description: "PyTorch version"
+        required: false
+        default: "2.7.0"
+      cuda_version:
+        description: "CUDA version"
+        required: false
+        default: "12.9.1"
+      python_version:
+        description: "Python version"
+        required: false
+        default: "3.12"
+
+jobs:
+  # Job 1: Build Linux wheels using cibuildwheel (direct compilation)
+  build-linux-wheels:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Linux builds - PyTorch 2.7
+          - python-version: "3.12"
+            torch-version: "2.7.0"
+            cuda-version: "12.9.1"
+            cuda-arch: "8.0 8.6 8.9 9.0 12.0"
+            cuda-minor: "9"
+            torch-minor: "7"
+            torch-patch: "0"
+          # Linux builds - PyTorch 2.8
+          - python-version: "3.12"
+            torch-version: "2.8.0"
+            cuda-version: "12.9.1"
+            cuda-arch: "8.0 8.6 8.9 9.0 12.0"
+            cuda-minor: "9"
+            torch-minor: "8"
+            torch-patch: "0"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up CUDA (Linux)
+        run: |
+          # Ubuntu runners have CUDA pre-installed
+          echo "Using pre-installed CUDA on Ubuntu runner"
+          echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+          echo "CUDA_ROOT=/usr/local/cuda" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PATH=/usr/local/cuda/bin:$PATH" >> $GITHUB_ENV
+
+      # Verify CUDA installation
+      - name: Verify CUDA installation
+        run: |
+          echo "CUDA_HOME: $CUDA_HOME"
+          echo "CUDA_ROOT: $CUDA_ROOT"
+          echo "PATH: $PATH"
+          echo "Environment variables:"
+          env | grep -i cuda || echo "No CUDA environment variables found"
+          which nvcc || echo "nvcc not found in PATH"
+          nvcc --version || echo "nvcc not found or not working"
+
+      # Install cibuildwheel
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install --upgrade pip
+          pip install cibuildwheel
+
+      # Set environment variables
+      - name: Set build environment
+        run: |
+          echo "TORCH_CUDA_ARCH_LIST=${{ matrix.cuda-arch }}" >> $GITHUB_ENV
+          echo "CUDA_MINOR_VERSION=${{ matrix.cuda-minor }}" >> $GITHUB_ENV
+          echo "TORCH_MINOR_VERSION=${{ matrix.torch-minor }}" >> $GITHUB_ENV
+          echo "TORCH_PATCH_VERSION=${{ matrix.torch-patch }}" >> $GITHUB_ENV
+          echo "SAGEATTENTION_WHEEL_VERSION_SUFFIX=+cu${{ matrix.cuda-minor }}torch${{ matrix.torch-minor }}.${{ matrix.torch-patch }}" >> $GITHUB_ENV
+          echo "CIBW_BUILD_VERBOSITY=1" >> $GITHUB_ENV
+          echo "CIBW_DEPENDENCY_VERSIONS=latest" >> $GITHUB_ENV
+
+      # Build wheels using cibuildwheel
+      - name: Build wheels using cibuildwheel
+        run: |
+          export CIBW_BUILD="cp312-manylinux_x86_64"
+          export CIBW_BEFORE_BUILD="python update_pyproject.py"
+          export CIBW_BEFORE_ALL="pip install --upgrade pip setuptools wheel packaging"
+          
+          cibuildwheel --platform linux --output-dir wheelhouse .
+
+      # Upload wheel artifacts
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sageattention-linux-wheels
+          path: wheelhouse/*.whl
+          retention-days: 7
+
+  # Job 2: Test Linux wheels
+  test-linux-wheels:
+    needs: build-linux-wheels
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - python-version: 3.12
+            torch-version: 2.7.0
+            cuda-version: 12.9.1
+            cuda-arch-list: "7.0;7.5;8.0;8.6;8.9;9.0"
+            torch-minor-version: 7
+            torch-patch-version: 0
+            cuda-minor-version: 9
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up CUDA (Linux)
+        run: |
+          echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+          echo "CUDA_ROOT=/usr/local/cuda" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PATH=/usr/local/cuda/bin:$PATH" >> $GITHUB_ENV
+
+      # Download wheels for testing
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sageattention-linux-wheels
+
+      # Test wheels
+      - name: Test wheels
+        run: |
+          # Install PyTorch
+          pip install torch==${{ matrix.torch-version }} torchvision --index-url https://download.pytorch.org/whl/cu${{ matrix.cuda-minor-version }}9
+          
+          # Install and test the built wheel
+          find . -name "*.whl" -type f | head -1 | while read wheel; do
+            echo "Testing wheel: $wheel"
+            pip install "$wheel"
+            python -c "import sageattention; print('SageAttention imported successfully')"
+          done
+
+  # Job 3: Publish Linux wheels
+  publish-linux-wheels:
+    needs: [build-linux-wheels, test-linux-wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sageattention-linux-wheels
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install twine
+        run: |
+          pip install twine
+
+      - name: Create PyPI configuration
+        run: |
+          cat > ~/.pypirc << EOF
+          [distutils]
+          index-servers =
+              github
+          [github]
+          repository = https://github.com/${{ github.repository }}/packages/pypi
+          username = ${{ github.actor }}
+          password = ${{ secrets.GITHUB_TOKEN }}
+          EOF
+
+      - name: Publish to GitHub Packages
+        run: |
+          find . -name "*.whl" -type f | while read wheel; do
+            echo "Uploading $wheel to GitHub Packages (Linux direct compilation)..."
+            twine upload --repository github "$wheel"
+          done
+
+      - name: Compare build results
+        run: |
+          echo "=== Linux Direct Compilation Build Results ==="
+          echo "Wheels built:"
+          find . -name "*.whl" -type f | sort
+          echo ""
+          echo "Wheel sizes:"
+          find . -name "*.whl" -type f -exec ls -lh {} \;
+          echo ""
+          echo "Build summary:"
+          echo "- Linux direct compilation builds completed successfully"
+          echo "- Using cibuildwheel for consistent builds"
+          echo "- CUDA 12.9.1 with PyTorch 2.7.0 and 2.8.0"
+          echo "- No Docker dependencies for build process"
