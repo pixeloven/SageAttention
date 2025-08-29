@@ -87,9 +87,9 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.27
         with:
           cuda: ${{ matrix.cuda-version }}
-          use-github-cache: true
-          use-local-cache: true
           method: local
+          linux-local-args: '["--toolkit", "--samples"]'
+          log-file-suffix: ${{ matrix.platform }}-${{ matrix.cuda-version }}.txt
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
