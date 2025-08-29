@@ -93,6 +93,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Switch Docker to Windows containers
+        run: |
+          & "C:\Program Files\Docker\Docker\DockerCli.exe" -SwitchDaemon
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
