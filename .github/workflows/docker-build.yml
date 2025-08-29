@@ -31,54 +31,22 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux builds - PyTorch 2.7
+          # Linux builds - PyTorch 2.7 + CUDA 12.8
           - platform: linux
-            python-version: "3.12"
-            cuda-version: "12.9.1"
-            torch-version: "2.7.0"
-            cuda-arch: "8.0;8.6;8.9;9.0;12.0"
-            cuda-minor: "9"
-            torch-minor: "7"
-            torch-patch: "0"
-            dockerfile: "dockerfile.builder.linux"
-            build-target: "wheel-linux"
-            test-target: "test-linux"
-          # Linux builds - PyTorch 2.8
+            build-target: "linux-pytorch27-cu128-python312"
+            test-target: "test-linux-pytorch27-cu128-python312"
+          # Linux builds - PyTorch 2.8 + CUDA 12.9
           - platform: linux
-            python-version: "3.12"
-            cuda-version: "12.9.1"
-            torch-version: "2.8.0"
-            cuda-arch: "8.0;8.6;8.9;9.0;12.0"
-            cuda-minor: "9"
-            torch-minor: "8"
-            torch-patch: "0"
-            dockerfile: "dockerfile.builder.linux"
-            build-target: "wheel-linux"
-            test-target: "test-linux"
-          # Windows builds - PyTorch 2.7
+            build-target: "linux-pytorch28-cu129-python312"
+            test-target: "test-linux-pytorch28-cu129-python312"
+          # Windows builds - PyTorch 2.7 + CUDA 12.8
           - platform: windows
-            python-version: "3.12"
-            cuda-version: "12.9.1"
-            torch-version: "2.7.0"
-            cuda-arch: "8.0;8.6;8.9;9.0;12.0"
-            cuda-minor: "9"
-            torch-minor: "7"
-            torch-patch: "0"
-            dockerfile: "dockerfile.builder.windows"
-            build-target: "wheel-windows"
-            test-target: "test-windows"
-          # Windows builds - PyTorch 2.8
+            build-target: "windows-pytorch27-cu128-python312"
+            test-target: "test-windows-pytorch27-cu128-python312"
+          # Windows builds - PyTorch 2.8 + CUDA 12.9
           - platform: windows
-            python-version: "3.12"
-            cuda-version: "12.9.1"
-            torch-version: "2.8.0"
-            cuda-arch: "8.0;8.6;8.9;9.0;12.0"
-            cuda-minor: "9"
-            torch-minor: "8"
-            torch-patch: "0"
-            dockerfile: "dockerfile.builder.windows"
-            build-target: "wheel-windows"
-            test-target: "test-windows"
+            build-target: "windows-pytorch28-cu129-python312"
+            test-target: "test-windows-pytorch28-cu129-python312"
 
     steps:
       - name: Checkout repository
@@ -100,54 +68,18 @@ jobs:
 
       - name: Build wheel using docker-bake
         run: |
-          docker buildx bake --file docker-bake.hcl ${{ matrix.build-target }} \
-            --set "*.args.PLATFORM=${{ matrix.platform }}" \
-            --set "*.args.CUDA_VERSION=${{ matrix.cuda-version }}" \
-            --set "*.args.PYTHON_VERSION=${{ matrix.python-version }}" \
-            --set "*.args.TORCH_CUDA_ARCH_LIST=${{ matrix.cuda-arch }}" \
-            --set "*.args.TORCH_MINOR_VERSION=${{ matrix.torch-minor }}" \
-            --set "*.args.TORCH_PATCH_VERSION=${{ matrix.torch-patch }}" \
-            --set "*.args.CUDA_SUFFIX=129"
-
-      - name: Rename wheel with proper naming convention
-        run: |
-          cd wheels
-          for wheel in *.whl; do
-            if [[ -f "$wheel" ]]; then
-              # Extract version from wheel name
-              version=$(echo "$wheel" | sed -n 's/sageattention-\([^-]*\)-.*/\1/p')
-              # Generate wheel suffix dynamically
-              wheel_suffix="cu${{ matrix.cuda-minor }}torch${{ matrix.torch-minor }}.${{ matrix.torch-patch }}"
-              # Create new name with proper convention
-              python_version_clean=$(echo ${{ matrix.python-version }} | tr -d '.')
-              if [[ "${{ matrix.platform }}" == "windows" ]]; then
-                platform_suffix="win_amd64"
-              else
-                platform_suffix="manylinux_x86_64"
-              fi
-              new_name="sageattention-${version}+${wheel_suffix}-cp${python_version_clean}-cp${python_version_clean}-${platform_suffix}.whl"
-              mv "$wheel" "$new_name"
-              echo "Renamed $wheel to $new_name"
-            fi
-          done
+          docker buildx bake --file docker-bake.hcl ${{ matrix.build-target }}
 
       # Test wheel using Docker
       - name: Test wheel using Docker
         run: |
-          docker buildx bake --file docker-bake.hcl ${{ matrix.test-target }} \
-            --set "*.args.PLATFORM=${{ matrix.platform }}" \
-            --set "*.args.CUDA_VERSION=${{ matrix.cuda-version }}" \
-            --set "*.args.PYTHON_VERSION=${{ matrix.python-version }}" \
-            --set "*.args.TORCH_CUDA_ARCH_LIST=${{ matrix.cuda-arch }}" \
-            --set "*.args.TORCH_MINOR_VERSION=${{ matrix.torch-minor }}" \
-            --set "*.args.TORCH_PATCH_VERSION=${{ matrix.torch-patch }}" \
-            --set "*.args.CUDA_SUFFIX=129"
+          docker buildx bake --file docker-bake.hcl ${{ matrix.test-target }}
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
           name: sageattention-docker-wheels-${{ matrix.platform }}
-          path: wheels/*.whl
+          path: builder/*.whl
           retention-days: 7
 
   # Job 2: Publish wheels
@@ -224,6 +156,6 @@ jobs:
           echo "Build summary:"
           echo "- Docker builds completed successfully"
           echo "- All platforms supported: Linux and Windows"
-          echo "- CUDA 12.9.1 with PyTorch 2.7.0 and 2.8.0"
+          echo "- CUDA 12.8.1 with PyTorch 2.7.0 and CUDA 12.9.1 with PyTorch 2.8.0"
           echo "- Consistent builds using Docker containers"
           echo "- Platform-specific Dockerfiles: dockerfile.builder.linux and dockerfile.builder.windows"

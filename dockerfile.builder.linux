@@ -1,21 +1,13 @@
 # SageAttention Builder - Multi-platform multi-stage build for SageAttention wheels
 # Supports Linux with multiple PyTorch versions
 
-# Build arguments for version flexibility
-ARG CUDA_VERSION=12.9.1
-ARG PYTHON_VERSION=3.12
-ARG TORCH_MINOR_VERSION=8
-ARG TORCH_PATCH_VERSION=0
-ARG TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0"
-
 # Use NVIDIA CUDA base image with cuDNN development libraries
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu24.04 AS sageattention-builder
 
 # Declare build arguments
 ARG CUDA_VERSION
 ARG PYTHON_VERSION
-ARG TORCH_MINOR_VERSION
-ARG TORCH_PATCH_VERSION
+ARG TORCH_VERSION
 ARG TORCH_CUDA_ARCH_LIST
 
 # Set environment variables from ARGs
@@ -25,14 +17,12 @@ ENV PATH=$CUDA_HOME/bin:$PATH
 ENV LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 ENV PYTHONUNBUFFERED=1
 ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
-ENV TORCH_MINOR_VERSION=${TORCH_MINOR_VERSION}
-ENV TORCH_PATCH_VERSION=${TORCH_PATCH_VERSION}
+ENV TORCH_VERSION=${TORCH_VERSION}
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Verify ARG values are passed through
-RUN echo "TORCH_MINOR_VERSION: ${TORCH_MINOR_VERSION}" && \
-    echo "TORCH_PATCH_VERSION: ${TORCH_PATCH_VERSION}" && \
+RUN echo "TORCH_VERSION: ${TORCH_VERSION}" && \
     echo "PYTHON_VERSION: ${PYTHON_VERSION}" && \
     echo "CUDA_VERSION: ${CUDA_VERSION}" && \
     echo "TORCH_CUDA_ARCH_LIST: ${TORCH_CUDA_ARCH_LIST}"
@@ -60,9 +50,9 @@ RUN pip install --upgrade pip setuptools wheel packaging
 
 # Install PyTorch with appropriate CUDA support
 RUN if [ "$CUDA_VERSION" = "12.8.1" ]; then \
-        pip install torch==2.${TORCH_MINOR_VERSION}.${TORCH_PATCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
+        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
     else \
-        pip install torch==2.${TORCH_MINOR_VERSION}.${TORCH_PATCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
+        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
     fi
 
 # Copy the local SageAttention source code
@@ -103,9 +93,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Install PyTorch and test the built wheel
 RUN if [ "$CUDA_VERSION" = "12.8.1" ]; then \
-        pip install torch==2.${TORCH_MINOR_VERSION}.${TORCH_PATCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
+        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
     else \
-        pip install torch==2.${TORCH_MINOR_VERSION}.${TORCH_PATCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
+        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
     fi
 
 # Copy and install the built wheel from wheel stage

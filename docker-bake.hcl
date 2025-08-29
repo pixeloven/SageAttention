@@ -10,6 +10,10 @@ variable "CUDA_VERSION" {
   default = "12.9.1"
 }
 
+variable "TORCH_VERSION" {
+  default = "2.8.0"
+}
+
 variable "TORCH_CUDA_ARCH_LIST" {
   default = "8.0;8.6;8.9;9.0;12.0"
 }
@@ -25,8 +29,7 @@ target "linux-pytorch27-cu128-python312" {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = "7"
-    TORCH_PATCH_VERSION = "0"
+    TORCH_VERSION = "2.7.0"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
@@ -41,8 +44,7 @@ target "linux-pytorch28-cu129-python312" {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = "8"
-    TORCH_PATCH_VERSION = "0"
+    TORCH_VERSION = "2.8.0"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
@@ -59,8 +61,7 @@ target "windows-pytorch27-cu128-python312" {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = "7"
-    TORCH_PATCH_VERSION = "0"
+    TORCH_VERSION = "2.7.0"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
@@ -75,8 +76,7 @@ target "windows-pytorch28-cu129-python312" {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = "8"
-    TORCH_PATCH_VERSION = "0"
+    TORCH_VERSION = "2.8.0"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
@@ -92,8 +92,7 @@ target "test-linux-pytorch27-cu128-python312" {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = "7"
-    TORCH_PATCH_VERSION = "0"
+    TORCH_VERSION = "2.7.0"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
@@ -107,8 +106,35 @@ target "test-linux-pytorch28-cu129-python312" {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = "8"
-    TORCH_PATCH_VERSION = "0"
+    TORCH_VERSION = "2.8.0"
+  }
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
+}
+
+target "test-windows-pytorch27-cu128-python312" {
+  dockerfile = "dockerfile.builder.windows"
+  target = "sageattention-test"
+  platforms = ["windows/amd64"]
+  args = {
+    CUDA_VERSION = "12.8.1"
+    PYTHON_VERSION = PYTHON_VERSION
+    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
+    TORCH_VERSION = "2.7.0"
+  }
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
+}
+
+target "test-windows-pytorch28-cu129-python312" {
+  dockerfile = "dockerfile.builder.windows"
+  target = "sageattention-test"
+  platforms = ["windows/amd64"]
+  args = {
+    CUDA_VERSION = "12.9.1"
+    PYTHON_VERSION = PYTHON_VERSION
+    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
+    TORCH_VERSION = "2.8.0"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
@@ -159,6 +185,8 @@ group "all" {
 group "test-all" {
   targets = [
     "test-linux-pytorch27-cu128-python312",
-    "test-linux-pytorch28-cu129-python312"
+    "test-linux-pytorch28-cu129-python312",
+    "test-windows-pytorch27-cu128-python312",
+    "test-windows-pytorch28-cu129-python312"
   ]
 } 
