@@ -84,7 +84,7 @@ jobs:
 
       # Platform-specific setup
       - name: Set up CUDA (Linux/Windows)
-        uses: Jimver/cuda-toolkit@v0.2.27
+        uses: Jimver/cuda-toolkit@v0.2.22
         with:
           cuda: ${{ matrix.cuda-version }}
           use-github-cache: false
@@ -118,6 +118,9 @@ jobs:
           echo "TORCH_MINOR_VERSION=${{ matrix.torch-minor }}" >> $GITHUB_ENV
           echo "TORCH_PATCH_VERSION=${{ matrix.torch-patch }}" >> $GITHUB_ENV
           echo "SAGEATTENTION_WHEEL_VERSION_SUFFIX=+cu${{ matrix.cuda-minor }}torch${{ matrix.torch-minor }}.${{ matrix.torch-patch }}" >> $GITHUB_ENV
+          echo "DISTUTILS_USE_SDK=1" >> $GITHUB_ENV
+          echo "CIBW_BUILD_VERBOSITY=1" >> $GITHUB_ENV
+          echo "CIBW_DEPENDENCY_VERSIONS=latest" >> $GITHUB_ENV
 
       # Set Windows-specific CUDA_HOME
       - name: Set Windows CUDA_HOME
@@ -129,7 +132,11 @@ jobs:
       - name: Build wheels
         run: |
           # Set cibuildwheel environment variables
-          export CIBW_BUILD="cp312-${{ matrix.platform }}_x86_64"
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            export CIBW_BUILD="cp312-win_amd64"
+          else
+            export CIBW_BUILD="cp312-manylinux_x86_64"
+          fi
           export CIBW_BEFORE_BUILD="python update_pyproject.py"
           export CIBW_BEFORE_ALL="pip install --upgrade pip setuptools wheel packaging"
           
