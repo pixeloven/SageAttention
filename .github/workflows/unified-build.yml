@@ -79,7 +79,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       # Platform-specific setup
-      - name: Set up CUDA (Linux/Windows)
+      - name: Set up CUDA (Linux)
         if: matrix.platform == 'linux'
         run: |
           # Ubuntu runners have CUDA pre-installed
@@ -92,23 +92,21 @@ jobs:
       - name: Set up CUDA (Windows)
         if: matrix.platform == 'windows'
         run: |
-          # Install CUDA 12.9 on Windows runners
-          echo "Installing CUDA 12.9 on Windows runner"
+          # Download and install CUDA 12.9 using chocolatey
+          echo "Installing CUDA 12.9 on Windows using chocolatey"
           
-          # Download and install CUDA 12.9
-          $cudaUrl = "https://developer.download.nvidia.com/compute/cuda/12.9.0/local_installers/cuda_12.9.0_551.23_windows.exe"
-          $cudaInstaller = "cuda_12.9.0_551.23_windows.exe"
+          # Install chocolatey if not available
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
           
-          # Download CUDA installer
-          Invoke-WebRequest -Uri $cudaUrl -OutFile $cudaInstaller
-          
-          # Install CUDA silently
-          Start-Process -FilePath $cudaInstaller -ArgumentList "/s /TARGET=C:\CUDA" -Wait
+          # Install CUDA 12.9 using chocolatey
+          choco install cuda --version=12.9.0 -y
           
           # Set environment variables
-          echo "CUDA_HOME=C:\CUDA\v12.9" >> $GITHUB_ENV
-          echo "CUDA_ROOT=C:\CUDA\v12.9" >> $GITHUB_ENV
-          echo "PATH=C:\CUDA\v12.9\bin;$PATH" >> $GITHUB_ENV
+          echo "CUDA_HOME=C:\ProgramData\chocolatey\lib\cuda\tools\cuda\v12.9" >> $GITHUB_ENV
+          echo "CUDA_ROOT=C:\ProgramData\chocolatey\lib\cuda\tools\cuda\v12.9" >> $GITHUB_ENV
+          echo "PATH=C:\ProgramData\chocolatey\lib\cuda\tools\cuda\v12.9\bin;$PATH" >> $GITHUB_ENV
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
