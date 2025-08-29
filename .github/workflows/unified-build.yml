@@ -34,40 +34,40 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             python-version: "3.12"
-            cuda-version: "12.9.1"
+            cuda-version: "12.8.0"
             torch-version: "2.7.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
-            cuda-minor: "9"
+            cuda-minor: "8"
             torch-minor: "7"
             torch-patch: "0"
           # Linux builds - PyTorch 2.8
           - os: ubuntu-latest
             platform: linux
             python-version: "3.12"
-            cuda-version: "12.9.1"
+            cuda-version: "12.8.0"
             torch-version: "2.8.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
-            cuda-minor: "9"
+            cuda-minor: "8"
             torch-minor: "8"
             torch-patch: "0"
           # Windows builds
           - os: windows-latest
             platform: windows
             python-version: "3.12"
-            cuda-version: "12.9.1"
+            cuda-version: "12.8.0"
             torch-version: "2.7.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
-            cuda-minor: "9"
+            cuda-minor: "8"
             torch-minor: "7"
             torch-patch: "0"
           # Windows builds - PyTorch 2.8
           - os: windows-latest
             platform: windows
             python-version: "3.12"
-            cuda-version: "12.9.1"
+            cuda-version: "12.8.0"
             torch-version: "2.8.0"
             cuda-arch: "8.0 8.6 8.9 9.0 12.0"
-            cuda-minor: "9"
+            cuda-minor: "8"
             torch-minor: "8"
             torch-patch: "0"
 
@@ -87,9 +87,6 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.27
         with:
           cuda: ${{ matrix.cuda-version }}
-          method: local
-          linux-local-args: '["--toolkit", "--samples"]'
-          log-file-suffix: ${{ matrix.platform }}-${{ matrix.cuda-version }}.txt
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
@@ -148,16 +145,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cuda-version: [12.9.1]
+        cuda-version: [12.8.0]
         python-version: [3.12]
         torch-version: [2.7.0]
         include:
-          - cuda-version: 12.9.1
+          - cuda-version: 12.8.0
             python-version: 3.12
             cuda-arch-list: "7.0;7.5;8.0;8.6;8.9;9.0"
             torch-minor-version: 7
             torch-patch-version: 0
-            cuda-minor-version: 9
+            cuda-minor-version: 8
 
     steps:
       - name: Checkout repository
