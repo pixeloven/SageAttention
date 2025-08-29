@@ -90,8 +90,6 @@ jobs:
           use-github-cache: true
           use-local-cache: true
           method: local
-          sub-packages: []
-          non-cuda-sub-packages: []
 
       - name: Set up MSVC (Windows)
         if: matrix.platform == 'windows'
