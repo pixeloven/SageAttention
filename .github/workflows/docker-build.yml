@@ -93,21 +93,51 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Switch Docker to Windows containers
+      - name: Check Docker configuration
         run: |
-          & "C:\Program Files\Docker\Docker\DockerCli.exe" -SwitchDaemon
+          Write-Output "=== Docker Version ==="
+          docker version
+          Write-Output "`n=== Docker Info ==="
+          docker info
+          Write-Output "`n=== Available Docker Images ==="
+          docker images
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build wheel using docker-bake
+      - name: Set build variables
         run: |
-          docker buildx bake --file docker-bake.hcl ${{ matrix.build-target }}
+          # Extract version info from build target
+          if ("${{ matrix.build-target }}" -like "*pytorch27*") {
+            $torchVersion = "2.7.0"
+          } else {
+            $torchVersion = "2.8.0"
+          }
+          
+          if ("${{ matrix.build-target }}" -like "*cu128*") {
+            $cudaVersion = "12.8.1"
+          } else {
+            $cudaVersion = "12.9.1"
+          }
+          
+          Write-Output "TORCH_VERSION=$torchVersion" >> $env:GITHUB_ENV
+          Write-Output "CUDA_VERSION=$cudaVersion" >> $env:GITHUB_ENV
+          Write-Output "PYTHON_VERSION=3.12" >> $env:GITHUB_ENV
+          Write-Output "TORCH_CUDA_ARCH_LIST=8.0;8.6;8.9;9.0;12.0" >> $env:GITHUB_ENV
+
+      - name: Build wheel using docker build
+        run: |
+          # Build the wheel directly using docker build instead of buildx
+          docker build -f dockerfile.builder.windows --target sageattention-wheel --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-wheel .
+          
+          # Extract wheel from container
+          $containerId = docker create sageattention-wheel
+          docker cp "${containerId}:C:\wheels" ./builder
+          docker rm $containerId
 
       # Test wheel using Docker
-      - name: Test wheel using Docker
+      - name: Test wheel using docker build
         run: |
-          docker buildx bake --file docker-bake.hcl ${{ matrix.test-target }}
+          # Test the build
+          docker build -f dockerfile.builder.windows --target sageattention-test --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-test .
+          docker run --rm sageattention-test
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
