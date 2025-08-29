@@ -1,27 +1,41 @@
 # SageAttention Builder - Multi-platform multi-stage build for SageAttention wheels
-# Supports Linux and Windows with multiple PyTorch versions
+# Supports Linux with multiple PyTorch versions
 
 # Build arguments for version flexibility
 ARG CUDA_VERSION=12.9.1
 ARG PYTHON_VERSION=3.12
-ARG TORCH_MINOR_VERSION=7
+ARG TORCH_MINOR_VERSION=8
 ARG TORCH_PATCH_VERSION=0
-ARG TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0"
+ARG TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0"
 
-# Stage 1: SageAttention Builder
+# Use NVIDIA CUDA base image with cuDNN development libraries
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu24.04 AS sageattention-builder
 
-# Set environment variables
+# Declare build arguments
+ARG CUDA_VERSION
+ARG PYTHON_VERSION
+ARG TORCH_MINOR_VERSION
+ARG TORCH_PATCH_VERSION
+ARG TORCH_CUDA_ARCH_LIST
+
+# Set environment variables from ARGs
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH=$CUDA_HOME/bin:$PATH
 ENV LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 ENV PYTHONUNBUFFERED=1
-ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0"
-ENV TORCH_MINOR_VERSION="8"
-ENV TORCH_PATCH_VERSION="0"
-ENV PYTHON_VERSION="3.12"
-ENV CUDA_VERSION="12.9.1"
+ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
+ENV TORCH_MINOR_VERSION=${TORCH_MINOR_VERSION}
+ENV TORCH_PATCH_VERSION=${TORCH_PATCH_VERSION}
+ENV PYTHON_VERSION=${PYTHON_VERSION}
+ENV CUDA_VERSION=${CUDA_VERSION}
+
+# Verify ARG values are passed through
+RUN echo "TORCH_MINOR_VERSION: ${TORCH_MINOR_VERSION}" && \
+    echo "TORCH_PATCH_VERSION: ${TORCH_PATCH_VERSION}" && \
+    echo "PYTHON_VERSION: ${PYTHON_VERSION}" && \
+    echo "CUDA_VERSION: ${CUDA_VERSION}" && \
+    echo "TORCH_CUDA_ARCH_LIST: ${TORCH_CUDA_ARCH_LIST}"
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -45,7 +59,11 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --upgrade pip setuptools wheel packaging
 
 # Install PyTorch with appropriate CUDA support
-RUN pip install torch==2.8.0 torchvision --index-url https://download.pytorch.org/whl/cu129
+RUN if [ "$CUDA_VERSION" = "12.8.1" ]; then \
+        pip install torch==2.${TORCH_MINOR_VERSION}.${TORCH_PATCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
+    else \
+        pip install torch==2.${TORCH_MINOR_VERSION}.${TORCH_PATCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
+    fi
 
 # Copy the local SageAttention source code
 WORKDIR /build
@@ -61,9 +79,12 @@ RUN pip install -e .
 # Build SageAttention wheel
 RUN python setup.py bdist_wheel
 
-# Stage 2: Wheel extraction
-FROM scratch AS sageattention-wheel
-COPY --from=sageattention-builder /build/SageAttention/dist/*.whl /wheels/
+# Stage 2: Wheel extraction and storage
+FROM alpine:latest AS sageattention-wheel
+RUN apk add --no-cache bash
+WORKDIR /wheels
+COPY --from=sageattention-builder /build/SageAttention/dist/*.whl ./
+RUN ls -la && echo "Wheel extracted successfully"
 
 # Stage 3: Runtime verification
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu24.04 AS sageattention-test
@@ -81,11 +102,15 @@ RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install PyTorch and test the built wheel
-RUN pip install torch==2.7.0 torchvision --index-url https://download.pytorch.org/whl/cu129
+RUN if [ "$CUDA_VERSION" = "12.8.1" ]; then \
+        pip install torch==2.${TORCH_MINOR_VERSION}.${TORCH_PATCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
+    else \
+        pip install torch==2.${TORCH_MINOR_VERSION}.${TORCH_PATCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
+    fi
 
-# Copy and install the built wheel
-COPY --from=sageattention-builder /build/SageAttention/dist/*.whl /tmp/
+# Copy and install the built wheel from wheel stage
+COPY --from=sageattention-wheel /wheels/*.whl /tmp/
 RUN pip install /tmp/*.whl
 
 # Test SageAttention import
-RUN python -c "import sageattention; print('SageAttention imported successfully')" 
+RUN python -c "import sageattention; print('SageAttention imported successfully')"

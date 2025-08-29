@@ -11,7 +11,7 @@ ARG TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0"
 # Stage 1: SageAttention Builder
 FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS sageattention-builder
 
-# Set environment variables
+# Set environment variables from ARGs
 ENV CUDA_HOME="C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v${CUDA_VERSION}"
 ENV PATH="%CUDA_HOME%\\bin;%PATH%"
 ENV PYTHONUNBUFFERED=1
@@ -21,26 +21,26 @@ ENV TORCH_PATCH_VERSION=${TORCH_PATCH_VERSION}
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
-# Install Chocolatey package manager
+# Install Chocolatey package manager (cached layer)
 RUN powershell -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
-# Install Python and build tools
+# Install Python and build tools (cached layer)
 RUN choco install -y python${PYTHON_VERSION} visualstudio2019buildtools git
 
 # Refresh environment variables
 RUN refreshenv
 
-# Create virtual environment
+# Create virtual environment (cached layer)
 RUN python -m venv C:\\opt\\venv
 ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
 
-# Upgrade pip and install build tools
+# Upgrade pip and install build tools (cached layer)
 RUN python -m pip install --upgrade pip setuptools wheel packaging
 
-# Install PyTorch with appropriate CUDA support
+# Install PyTorch with appropriate CUDA support (cached layer)
 ARG CUDA_SUFFIX
 RUN if "%CUDA_SUFFIX%"=="" ( \
         python -m pip install torch==2.%TORCH_MINOR_VERSION%.%TORCH_PATCH_VERSION% torchvision --index-url https://download.pytorch.org/whl/cu%CUDA_VERSION:.=% \
@@ -48,18 +48,21 @@ RUN if "%CUDA_SUFFIX%"=="" ( \
         python -m pip install torch==2.%TORCH_MINOR_VERSION%.%TORCH_PATCH_VERSION% torchvision --index-url https://download.pytorch.org/whl/cu%CUDA_SUFFIX% \
     )
 
-# Copy the local SageAttention source code
+# Copy only dependency files first (cached layer for dependencies)
 WORKDIR C:\\build
+COPY pyproject.toml setup.py update_pyproject.py ./
+
+# Install SageAttention build dependencies (cached layer)
+RUN python -m pip install -e .
+
+# Copy the local SageAttention source code (changes invalidate cache)
 COPY . C:\\build\\SageAttention
 WORKDIR C:\\build\\SageAttention
 
 # Update pyproject.toml with correct PyTorch version
 RUN python update_pyproject.py
 
-# Install SageAttention build dependencies
-RUN python -m pip install -e .
-
-# Build SageAttention wheel
+# Build SageAttention wheel (changes invalidate cache)
 RUN python setup.py bdist_wheel
 
 # Stage 2: Wheel extraction

@@ -1,154 +1,164 @@
-variable "CUDA_VERSION" {
-  default = "12.9.1"
-}
+# SageAttention Docker Bake Configuration
+# Clear naming convention: {platform}-{pytorch}-{cuda}-{python}
 
+# Build configuration variables
 variable "PYTHON_VERSION" {
   default = "3.12"
 }
 
+variable "CUDA_VERSION" {
+  default = "12.9.1"
+}
+
 variable "TORCH_CUDA_ARCH_LIST" {
-  default = "7.0;7.5;8.0;8.6;8.9;9.0"
+  default = "8.0;8.6;8.9;9.0;12.0"
 }
 
-variable "BUILD_PLATFORM" {
-  default = "linux/amd64"
+# Linux Builds
+# Format: linux-pytorch{cuda}-{python}
+target "linux-pytorch27-cu128-python312" {
+  dockerfile = "dockerfile.builder.linux"
+  target = "sageattention-wheel"
+  platforms = ["linux/amd64"]
+  output = ["type=local,dest=./builder"]
+  args = {
+    CUDA_VERSION = "12.8.1"
+    PYTHON_VERSION = PYTHON_VERSION
+    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
+    TORCH_MINOR_VERSION = "7"
+    TORCH_PATCH_VERSION = "0"
+  }
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
 }
 
-variable "TORCH_MINOR_VERSION" {
-  default = "7"
+target "linux-pytorch28-cu129-python312" {
+  dockerfile = "dockerfile.builder.linux"
+  target = "sageattention-wheel"
+  platforms = ["linux/amd64"]
+  output = ["type=local,dest=./builder"]
+  args = {
+    CUDA_VERSION = "12.9.1"
+    PYTHON_VERSION = PYTHON_VERSION
+    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
+    TORCH_MINOR_VERSION = "8"
+    TORCH_PATCH_VERSION = "0"
+  }
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
 }
 
-variable "TORCH_PATCH_VERSION" {
-  default = "0"
+# Windows Builds
+# Format: windows-pytorch{cuda}-{python}
+target "windows-pytorch27-cu128-python312" {
+  dockerfile = "dockerfile.builder.windows"
+  target = "sageattention-wheel"
+  platforms = ["windows/amd64"]
+  output = ["type=local,dest=./builder"]
+  args = {
+    CUDA_VERSION = "12.8.1"
+    PYTHON_VERSION = PYTHON_VERSION
+    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
+    TORCH_MINOR_VERSION = "7"
+    TORCH_PATCH_VERSION = "0"
+  }
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
 }
 
-variable "CUDA_MINOR_VERSION" {
-  default = "9"
+target "windows-pytorch28-cu129-python312" {
+  dockerfile = "dockerfile.builder.windows"
+  target = "sageattention-wheel"
+  platforms = ["windows/amd64"]
+  output = ["type=local,dest=./builder"]
+  args = {
+    CUDA_VERSION = "12.9.1"
+    PYTHON_VERSION = PYTHON_VERSION
+    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
+    TORCH_MINOR_VERSION = "8"
+    TORCH_PATCH_VERSION = "0"
+  }
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
 }
 
-variable "PLATFORM" {
-  default = "linux"
+# Test Targets
+# Format: test-{platform}-pytorch{cuda}-{python}
+target "test-linux-pytorch27-cu128-python312" {
+  dockerfile = "dockerfile.builder.linux"
+  target = "sageattention-test"
+  platforms = ["linux/amd64"]
+  args = {
+    CUDA_VERSION = "12.8.1"
+    PYTHON_VERSION = PYTHON_VERSION
+    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
+    TORCH_MINOR_VERSION = "7"
+    TORCH_PATCH_VERSION = "0"
+  }
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
 }
 
+target "test-linux-pytorch28-cu129-python312" {
+  dockerfile = "dockerfile.builder.linux"
+  target = "sageattention-test"
+  platforms = ["linux/amd64"]
+  args = {
+    CUDA_VERSION = "12.9.1"
+    PYTHON_VERSION = PYTHON_VERSION
+    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
+    TORCH_MINOR_VERSION = "8"
+    TORCH_PATCH_VERSION = "0"
+  }
+  cache-from = ["type=gha"]
+  cache-to = ["type=gha,mode=max"]
+}
+
+# Convenience Groups
 group "default" {
-  targets = ["wheel-linux"]
+  targets = ["linux-pytorch28-cu129-python312"]
 }
 
-# Build wheel for Linux
-target "wheel-linux" {
-  dockerfile = "dockerfile.builder.linux"
-  target = "sageattention-wheel"
-  platforms = ["linux/amd64"]
-  output = ["type=local,dest=./builder"]
-  args = {
-    CUDA_VERSION = CUDA_VERSION
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = TORCH_MINOR_VERSION
-    TORCH_PATCH_VERSION = TORCH_PATCH_VERSION
-    CUDA_SUFFIX = "129"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-# Build wheel for Windows
-target "wheel-windows" {
-  dockerfile = "dockerfile.builder.windows"
-  target = "sageattention-wheel"
-  platforms = ["windows/amd64"]
-  output = ["type=local,dest=./builder"]
-  args = {
-    CUDA_VERSION = CUDA_VERSION
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = TORCH_MINOR_VERSION
-    TORCH_PATCH_VERSION = TORCH_PATCH_VERSION
-    CUDA_SUFFIX = "129"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-# Default wheel target (builds for current platform)
-target "wheel" {
-  dockerfile = "dockerfile.builder.linux"
-  target = "sageattention-wheel"
-  platforms = [BUILD_PLATFORM]
-  output = ["type=local,dest=./builder"]
-  args = {
-    CUDA_VERSION = CUDA_VERSION
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = TORCH_MINOR_VERSION
-    TORCH_PATCH_VERSION = TORCH_PATCH_VERSION
-    CUDA_SUFFIX = "129"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-# Test the built wheel for Linux
-target "test-linux" {
-  dockerfile = "dockerfile.builder.linux"
-  target = "sageattention-test"
-  platforms = ["linux/amd64"]
-  args = {
-    CUDA_VERSION = CUDA_VERSION
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = TORCH_MINOR_VERSION
-    TORCH_PATCH_VERSION = TORCH_PATCH_VERSION
-    CUDA_SUFFIX = "129"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-# Test the built wheel for Windows
-target "test-windows" {
-  dockerfile = "dockerfile.builder.windows"
-  target = "sageattention-test"
-  platforms = ["windows/amd64"]
-  args = {
-    CUDA_VERSION = CUDA_VERSION
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = TORCH_MINOR_VERSION
-    TORCH_PATCH_VERSION = TORCH_PATCH_VERSION
-    CUDA_SUFFIX = "129"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-# Default test target
-target "test" {
-  dockerfile = "dockerfile.builder.linux"
-  target = "sageattention-test"
-  platforms = [BUILD_PLATFORM]
-  args = {
-    CUDA_VERSION = CUDA_VERSION
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_MINOR_VERSION = TORCH_MINOR_VERSION
-    TORCH_PATCH_VERSION = TORCH_PATCH_VERSION
-    CUDA_SUFFIX = "129"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-# Multi-platform build group
-group "multi-platform" {
-  targets = ["wheel-linux", "wheel-windows"]
-}
-
-# Platform-specific build groups
 group "linux" {
-  targets = ["wheel-linux", "test-linux"]
+  targets = [
+    "linux-pytorch27-cu128-python312",
+    "linux-pytorch28-cu129-python312"
+  ]
 }
 
 group "windows" {
-  targets = ["wheel-windows", "test-windows"]
+  targets = [
+    "windows-pytorch27-cu128-python312",
+    "windows-pytorch28-cu129-python312"
+  ]
+}
+
+group "pytorch27" {
+  targets = [
+    "linux-pytorch27-cu128-python312",
+    "windows-pytorch27-cu128-python312"
+  ]
+}
+
+group "pytorch28" {
+  targets = [
+    "linux-pytorch28-cu129-python312",
+    "windows-pytorch28-cu129-python312"
+  ]
+}
+
+group "all" {
+  targets = [
+    "linux-pytorch27-cu128-python312",
+    "linux-pytorch28-cu129-python312",
+    "windows-pytorch27-cu128-python312",
+    "windows-pytorch28-cu129-python312"
+  ]
+}
+
+group "test-all" {
+  targets = [
+    "test-linux-pytorch27-cu128-python312",
+    "test-linux-pytorch28-cu129-python312"
+  ]
 } 
