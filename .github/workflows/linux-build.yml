@@ -97,8 +97,8 @@ jobs:
           export CIBW_BEFORE_BUILD="python update_pyproject.py"
           export CIBW_BEFORE_ALL="pip install --upgrade pip setuptools wheel packaging"
           
-          # Pass CUDA environment variables to cibuildwheel
-          export CIBW_ENVIRONMENT="TORCH_CUDA_ARCH_LIST=${{ matrix.cuda-arch }} CUDA_HOME=/usr/local/cuda CUDA_ROOT=/usr/local/cuda LD_LIBRARY_PATH=/usr/local/cuda/lib64"
+          # Pass CUDA environment variables to the build
+          export CIBW_BEFORE_BUILD="$CIBW_BEFORE_BUILD && export TORCH_CUDA_ARCH_LIST='${{ matrix.cuda-arch}}' && export CUDA_HOME=/usr/local/cuda && export CUDA_ROOT=/usr/local/cuda"
           
           cibuildwheel --platform linux --output-dir wheelhouse .
 
