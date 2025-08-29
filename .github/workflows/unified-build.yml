@@ -34,7 +34,7 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             python-version: "3.12"
-            cuda-version: "12.1"
+            cuda-version: "12.1.1"
             torch-version: "2.7.0"
             cuda-arch: "8.0 8.6 8.9 9.0"
             cuda-minor: "1"
@@ -44,7 +44,7 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             python-version: "3.12"
-            cuda-version: "12.1"
+            cuda-version: "12.1.1"
             torch-version: "2.8.0"
             cuda-arch: "8.0 8.6 8.9 9.0"
             cuda-minor: "1"
@@ -54,7 +54,7 @@ jobs:
           - os: windows-latest
             platform: windows
             python-version: "3.12"
-            cuda-version: "12.1"
+            cuda-version: "12.1.1"
             torch-version: "2.7.0"
             cuda-arch: "8.0 8.6 8.9 9.0"
             cuda-minor: "1"
@@ -64,7 +64,7 @@ jobs:
           - os: windows-latest
             platform: windows
             python-version: "3.12"
-            cuda-version: "12.1"
+            cuda-version: "12.1.1"
             torch-version: "2.8.0"
             cuda-arch: "8.0 8.6 8.9 9.0"
             cuda-minor: "1"
@@ -157,11 +157,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cuda-version: [12.1]
+        cuda-version: [12.1.1]
         python-version: [3.12]
         torch-version: [2.7.0]
         include:
-          - cuda-version: 12.1
+          - cuda-version: 12.1.1
             python-version: 3.12
             cuda-arch-list: "7.0;7.5;8.0;8.6;8.9;9.0"
             torch-minor-version: 7
