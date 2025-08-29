@@ -17,7 +17,7 @@ SageAttention is an efficient and accurate attention mechanism that uses **low-b
 
 This fork extends the original SageAttention project with:
 
-1. **Unified Build System** - Simple `python build.py` commands for all build needs
+1. **Unified Build System** - Simple `python local-build.py` commands for all build needs
 2. **Hybrid Build Approach** - Docker for consistency, cibuildwheel for performance
 3. **Automated CI/CD Pipeline** - Builds wheels for multiple configurations automatically
 4. **GitHub Packages Distribution** - Pre-built wheels available for easy installation
@@ -64,13 +64,13 @@ sageattention-{version}+cu{minor}torch{major}.{patch}-cp{python_version}-{platfo
 
 ```bash
 # Development build (Docker - consistent)
-python build.py docker
+python local-build.py docker
 
 # Production build (cibuildwheel - fast)
-python build.py cibuildwheel
+python local-build.py cibuildwheel
 
 # Test wheels
-python build.py test
+python local-build.py test
 ```
 
 ## Available Packages
@@ -94,7 +94,7 @@ Once the CI pipeline completes successfully, pre-built wheels are available in t
 docker build -f dockerfile.builder -t sageattention-dev .
 
 # Or use the unified build script
-python build.py docker
+python local-build.py docker
 ```
 
 #### Option 2: cibuildwheel Build (Recommended for Production)
@@ -103,10 +103,10 @@ python build.py docker
 pip install cibuildwheel
 
 # Build for current platform
-python build.py cibuildwheel
+python local-build.py cibuildwheel
 
 # Build for specific platform
-python build.py cibuildwheel --platform linux
+python local-build.py cibuildwheel --platform linux
 ```
 
 #### Option 3: Direct Installation
@@ -132,7 +132,7 @@ export TORCH_PATCH_VERSION="0"
 
 ```bash
 # Test wheels using Docker (maintains consistency)
-python build.py test
+python local-build.py test
 ```
 
 ### Troubleshooting

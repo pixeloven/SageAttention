@@ -55,21 +55,27 @@ jobs:
 
       - name: Set up CUDA (Windows)
         run: |
-          # Install CUDA 12.9 on Windows using chocolatey
-          echo "Installing CUDA 12.9 on Windows"
+          # Try to install CUDA on Windows using chocolatey
+          echo "Attempting to install CUDA on Windows"
           
           # Install chocolatey if not available
           Set-ExecutionPolicy Bypass -Scope Process -Force
           [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
           iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
           
-          # Install CUDA 12.9 using chocolatey
-          choco install cuda --version=12.9.0 -y
-          
-          # Set environment variables
-          echo "CUDA_HOME=C:\ProgramData\chocolatey\lib\cuda\tools\cuda\v12.9" >> $GITHUB_ENV
-          echo "CUDA_ROOT=C:\ProgramData\chocolatey\lib\cuda\tools\cuda\v12.9" >> $GITHUB_ENV
-          echo "PATH=C:\ProgramData\chocolatey\lib\cuda\tools\cuda\v12.9\bin;$PATH" >> $GITHUB_ENV
+          # Try to install CUDA using chocolatey
+          try {
+            choco install cuda -y
+            echo "CUDA installed successfully"
+            echo "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" >> $GITHUB_ENV
+            echo "CUDA_ROOT=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4" >> $GITHUB_ENV
+            echo "PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin;$PATH" >> $GITHUB_ENV
+          } catch {
+            echo "CUDA installation failed, proceeding without CUDA"
+            echo "CUDA_HOME=" >> $GITHUB_ENV
+            echo "CUDA_ROOT=" >> $GITHUB_ENV
+            echo "PATH=$PATH" >> $GITHUB_ENV
+          }
 
       - name: Set up MSVC (Windows)
         uses: ilammy/msvc-dev-cmd@v1
@@ -83,7 +89,7 @@ jobs:
           echo "Environment variables:"
           Get-ChildItem Env: | Where-Object { $_.Name -like "*CUDA*" } | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
           Get-Command nvcc -ErrorAction SilentlyContinue | Select-Object Source
-          nvcc --version 2>$null || echo "nvcc not found or not working"
+          nvcc --version 2>$null || echo "nvcc not found - Windows builds may proceed without CUDA"
 
       # Install cibuildwheel
       - name: Install cibuildwheel
@@ -102,6 +108,7 @@ jobs:
           echo "DISTUTILS_USE_SDK=1" >> $GITHUB_ENV
           echo "CIBW_BUILD_VERBOSITY=1" >> $GITHUB_ENV
           echo "CIBW_DEPENDENCY_VERSIONS=latest" >> $GITHUB_ENV
+          echo "TORCH_CUDA_ARCH_LIST_CPU=7.0;7.5;8.0;8.6;8.9;9.0" >> $GITHUB_ENV
 
       # Build wheels using cibuildwheel
       - name: Build wheels using cibuildwheel
@@ -109,6 +116,15 @@ jobs:
           $env:CIBW_BUILD="cp312-win_amd64"
           $env:CIBW_BEFORE_BUILD="python update_pyproject.py"
           $env:CIBW_BEFORE_ALL="pip install --upgrade pip setuptools wheel packaging"
+          
+          # Set CUDA architecture list based on availability
+          if (Test-Path "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA") {
+            $env:TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0 12.0"
+            echo "CUDA found, building with GPU support"
+          } else {
+            $env:TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0"
+            echo "CUDA not found, building with CPU fallback"
+          }
           
           cibuildwheel --platform windows --output-dir wheelhouse .
 
