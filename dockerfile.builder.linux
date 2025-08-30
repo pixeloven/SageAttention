@@ -29,7 +29,7 @@ RUN echo "TORCH_VERSION: ${TORCH_VERSION}" && \
     echo "CUDA_VERSION: ${CUDA_VERSION}" && \
     echo "TORCH_CUDA_ARCH_LIST: ${TORCH_CUDA_ARCH_LIST}"
 
-# Install system dependencies
+# Install system dependencies and clean up aggressively
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-dev \
@@ -40,22 +40,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
     ca-certificates \
+    && apt-get autoremove -y \
+    && apt-get autoclean \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
 
 # Create virtual environment
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Upgrade pip and install build tools
-RUN pip install --upgrade pip setuptools wheel packaging
+# Upgrade pip and install build tools with cleanup
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel packaging \
+    && pip cache purge \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
 
-# Install PyTorch with appropriate CUDA support
+# Install PyTorch with appropriate CUDA support and cleanup
 RUN if [ "$CUDA_VERSION" = "12.8.1" ]; then \
-        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
+        pip install --no-cache-dir torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
     else \
-        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
-    fi
+        pip install --no-cache-dir torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
+    fi \
+    && pip cache purge \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/* \
+    && rm -rf /root/.cache
 
 # Copy the local SageAttention source code
 WORKDIR /build
@@ -65,8 +76,12 @@ WORKDIR /build/SageAttention
 # Update pyproject.toml with correct PyTorch version
 RUN python update_pyproject.py
 
-# Install SageAttention build dependencies
-RUN pip install -e .
+# Install SageAttention build dependencies with cleanup
+RUN pip install --no-cache-dir -e . \
+    && pip cache purge \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/* \
+    && rm -rf /root/.cache
 
 # Build SageAttention wheel
 RUN python setup.py bdist_wheel
@@ -96,28 +111,40 @@ ENV TORCH_VERSION=${TORCH_VERSION}
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
-# Install Python and PyTorch for testing
+# Install Python and PyTorch for testing with cleanup
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-venv \
     python3-pip \
+    && apt-get autoremove -y \
+    && apt-get autoclean \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
 
 # Create virtual environment
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install PyTorch and test the built wheel
+# Install PyTorch and test the built wheel with aggressive cleanup
 RUN if [ "$CUDA_VERSION" = "12.8.1" ]; then \
-        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
+        pip install --no-cache-dir torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
     else \
-        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
-    fi
+        pip install --no-cache-dir torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
+    fi \
+    && pip cache purge \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/* \
+    && rm -rf /root/.cache
 
-# Copy and install the built wheel from wheel stage
+# Copy and install the built wheel from wheel stage with cleanup
 COPY --from=sageattention-wheel /wheels/*.whl /tmp/
-RUN pip install /tmp/*.whl
+RUN pip install --no-cache-dir /tmp/*.whl \
+    && pip cache purge \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/* \
+    && rm -rf /root/.cache
 
 # Test SageAttention import
 RUN python -c "import sageattention; print('SageAttention imported successfully')"
