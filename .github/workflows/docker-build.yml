@@ -74,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sageattention-docker-wheels-${{ matrix.platform }}
-          path: builder/*.whl
+          path: build/*.whl
           retention-days: 7
 
   # Job 2: Build Windows wheels using Docker
@@ -178,7 +178,7 @@ jobs:
           
           # Extract wheel from container
           $containerId = docker create sageattention-wheel
-          docker cp "${containerId}:C:\wheels" ./builder
+          docker cp "${containerId}:C:\wheels" ./build
           docker rm $containerId
 
       # Test wheel using Docker
@@ -192,7 +192,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sageattention-docker-wheels-${{ matrix.platform }}
-          path: builder/*.whl
+          path: build/*.whl
           retention-days: 7
 
   # Job 3: Publish wheels
