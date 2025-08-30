@@ -1,0 +1,225 @@
+name: Docker Build - SageAttention Wheels
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      torch_version:
+        description: "PyTorch version"
+        required: false
+        default: "2.7.0"
+      cuda_version:
+        description: "CUDA version"
+        required: false
+        default: "12.9.1"
+      python_version:
+        description: "Python version"
+        required: false
+        default: "3.12"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Job 1: Build Linux wheels using Docker
+  build-linux-wheels:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Linux builds - PyTorch 2.7 + CUDA 12.8
+          - platform: linux
+            build-target: "linux-pytorch27-cu128-python312"
+            test-target: "test-linux-pytorch27-cu128-python312"
+          # Linux builds - PyTorch 2.8 + CUDA 12.9
+          - platform: linux
+            build-target: "linux-pytorch28-cu129-python312"
+            test-target: "test-linux-pytorch28-cu129-python312"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build wheel using docker-bake
+        run: |
+          docker buildx bake --file docker-bake.hcl ${{ matrix.build-target }}
+
+      # Test wheel using Docker
+      - name: Test wheel using Docker
+        run: |
+          docker buildx bake --file docker-bake.hcl ${{ matrix.test-target }}
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sageattention-docker-wheels-${{ matrix.platform }}
+          path: builder/*.whl
+          retention-days: 7
+
+  # Job 2: Build Windows wheels using Docker
+  build-windows-wheels:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        include:
+          # Windows builds - PyTorch 2.7 + CUDA 12.8
+          - platform: windows
+            build-target: "windows-pytorch27-cu128-python312"
+            test-target: "test-windows-pytorch27-cu128-python312"
+          # Windows builds - PyTorch 2.8 + CUDA 12.9
+          - platform: windows
+            build-target: "windows-pytorch28-cu129-python312"
+            test-target: "test-windows-pytorch28-cu129-python312"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Docker configuration
+        run: |
+          Write-Output "=== Docker Version ==="
+          docker version
+          Write-Output "`n=== Docker Info ==="
+          docker info
+          Write-Output "`n=== Available Docker Images ==="
+          docker images
+
+      - name: Set build variables
+        run: |
+          # Extract version info from build target
+          if ("${{ matrix.build-target }}" -like "*pytorch27*") {
+            $torchVersion = "2.7.0"
+          } else {
+            $torchVersion = "2.8.0"
+          }
+          
+          if ("${{ matrix.build-target }}" -like "*cu128*") {
+            $cudaVersion = "12.8.1"
+          } else {
+            $cudaVersion = "12.9.1"
+          }
+          
+          Write-Output "TORCH_VERSION=$torchVersion" >> $env:GITHUB_ENV
+          Write-Output "CUDA_VERSION=$cudaVersion" >> $env:GITHUB_ENV
+          Write-Output "PYTHON_VERSION=3.12" >> $env:GITHUB_ENV
+          Write-Output "TORCH_CUDA_ARCH_LIST=8.0;8.6;8.9;9.0;12.0" >> $env:GITHUB_ENV
+
+      - name: Build wheel using docker build
+        run: |
+          # Build the wheel directly using docker build instead of buildx
+          docker build -f dockerfile.builder.windows --target sageattention-wheel --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-wheel .
+          
+          # Extract wheel from container
+          $containerId = docker create sageattention-wheel
+          docker cp "${containerId}:C:\wheels" ./builder
+          docker rm $containerId
+
+      # Test wheel using Docker
+      - name: Test wheel using docker build
+        run: |
+          # Test the build
+          docker build -f dockerfile.builder.windows --target sageattention-test --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-test .
+          docker run --rm sageattention-test
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sageattention-docker-wheels-${{ matrix.platform }}
+          path: builder/*.whl
+          retention-days: 7
+
+  # Job 3: Publish wheels
+  publish-wheels-docker:
+    needs: [build-linux-wheels, build-windows-wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sageattention-docker-wheels-*
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install twine
+        run: |
+          pip install twine
+
+      - name: Create PyPI configuration
+        run: |
+          cat > ~/.pypirc << EOF
+          [distutils]
+          index-servers =
+              github
+          
+          [github]
+          repository = https://github.com/${{ github.repository }}/packages/pypi
+          username = ${{ github.actor }}
+          password = ${{ secrets.GITHUB_TOKEN }}
+          EOF
+
+      - name: Publish to GitHub Packages
+        run: |
+          # Find all wheel files
+          find . -name "*.whl" -type f | while read wheel; do
+            echo "Uploading $wheel to GitHub Packages..."
+            twine upload --repository github "$wheel"
+          done
+
+  # Job 4: Compare build results
+  compare-builds:
+    needs: [build-linux-wheels, build-windows-wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Docker wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sageattention-docker-wheels-*
+
+      - name: Compare build results
+        run: |
+          echo "=== Docker Build Results ==="
+          echo "Wheels built:"
+          find . -name "*.whl" -type f | sort
+          
+          echo ""
+          echo "Wheel sizes:"
+          find . -name "*.whl" -type f -exec ls -lh {} \;
+          
+          echo ""
+          echo "Build summary:"
+          echo "- Docker builds completed successfully"
+          echo "- All platforms supported: Linux and Windows"
+          echo "- CUDA 12.8.1 with PyTorch 2.7.0 and CUDA 12.9.1 with PyTorch 2.8.0"
+          echo "- Consistent builds using Docker containers"
+          echo "- Platform-specific Dockerfiles: dockerfile.builder.linux and dockerfile.builder.windows"
