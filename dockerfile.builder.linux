@@ -79,20 +79,16 @@ RUN echo "TORCH_VERSION: ${TORCH_VERSION}" && \
     echo "CUDA_VERSION: ${CUDA_VERSION}" && \
     echo "TORCH_CUDA_ARCH_LIST: ${TORCH_CUDA_ARCH_LIST}"
 
-# Copy dependency files first for better caching
+# Copy all source code (setup.py needs README.md and source directories)
 WORKDIR /build
-COPY pyproject.toml setup.py update_pyproject.py simpleindex.toml ./
+COPY . /build/
 
 # Update pyproject.toml with correct PyTorch version
 RUN python update_pyproject.py
 
-# Install SageAttention build dependencies (cached if dependencies unchanged)
+# Install build dependencies only (not editable install, since that requires CUDA compilation)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -e .
-
-# Copy the local SageAttention source code (invalidates cache only when source changes)
-COPY . /build/SageAttention
-WORKDIR /build/SageAttention
+    pip install numpy packaging pybind11 setuptools wheel
 
 # Build SageAttention wheel
 RUN python setup.py bdist_wheel
@@ -100,7 +96,7 @@ RUN python setup.py bdist_wheel
 # Stage 4: Wheel extraction (minimal, just copy the wheel)
 FROM pytorch-environment AS sageattention-wheel
 WORKDIR /wheels
-COPY --from=sageattention-builder /build/SageAttention/dist/*.whl ./
+COPY --from=sageattention-builder /build/dist/*.whl ./
 RUN ls -la && echo "Wheel extracted successfully"
 
 # Stage 5: Runtime verification (reuses pytorch-environment)
