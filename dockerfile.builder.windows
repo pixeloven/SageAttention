@@ -23,7 +23,7 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install Chocolatey package manager (cached layer)
-RUN pwsh.exe -Command \
+RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
@@ -42,7 +42,7 @@ ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
 RUN python -m pip install --upgrade pip setuptools wheel packaging
 
 # Install PyTorch with appropriate CUDA support (cached layer)
-RUN pwsh.exe -Command \
+RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
     } else { \
@@ -89,7 +89,7 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install Python for testing
-RUN pwsh.exe -Command \
+RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
@@ -104,7 +104,7 @@ RUN python -m venv C:\\opt\\venv
 ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
 
 # Install PyTorch and test the built wheel
-RUN pwsh.exe -Command \
+RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
     } else { \
