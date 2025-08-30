@@ -28,7 +28,8 @@ RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); \
     $env:PATH = \"C:\\ProgramData\\chocolatey\\bin;$env:PATH\"; \
-    choco install -y python --version=3.12 visualstudio2019buildtools git
+    choco install -y python --version=3.12; \
+    choco install -y visualstudio2019buildtools git
 
 # Add Chocolatey to PATH for subsequent commands
 ENV PATH=C:\\ProgramData\\chocolatey\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
