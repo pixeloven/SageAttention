@@ -23,7 +23,7 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install Chocolatey and Python in one step to avoid PATH issues
-RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
+RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); \
@@ -31,38 +31,38 @@ RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     choco install -y python --version=3.12 visualstudio2019buildtools git
 
 # Add Chocolatey to PATH for subsequent commands
-ENV PATH=C:\ProgramData\chocolatey\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\
+ENV PATH=C:\\ProgramData\\chocolatey\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
 
-# Create virtual environment (cached layer)
+# Create virtual environment
 RUN python -m venv C:\\opt\\venv
 ENV PATH=C:\\opt\\venv\\Scripts;C:\\ProgramData\\chocolatey\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
 
-# Upgrade pip and install build tools (cached layer)
+# Upgrade pip and install build tools
 RUN python -m pip install --upgrade pip setuptools wheel packaging
 
-# Install PyTorch with appropriate CUDA support (cached layer)
-RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
+# Install PyTorch with appropriate CUDA support
+RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
     } else { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu129 \
     }
 
-# Copy only dependency files first (cached layer for dependencies)
+# Copy only dependency files first for better caching
 WORKDIR C:\\build
 COPY pyproject.toml setup.py update_pyproject.py ./
 
-# Install SageAttention build dependencies (cached layer)
+# Install SageAttention build dependencies
 RUN python -m pip install -e .
 
-# Copy the local SageAttention source code (changes invalidate cache)
+# Copy the local SageAttention source code
 COPY . C:\\build\\SageAttention
 WORKDIR C:\\build\\SageAttention
 
 # Update pyproject.toml with correct PyTorch version
 RUN python update_pyproject.py
 
-# Build SageAttention wheel (changes invalidate cache)
+# Build SageAttention wheel
 RUN python setup.py bdist_wheel
 
 # Stage 2: Wheel extraction
@@ -88,7 +88,7 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install Chocolatey and Python for testing in one step
-RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
+RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); \
@@ -96,14 +96,14 @@ RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     choco install -y python --version=3.12
 
 # Add Chocolatey to PATH for test stage
-ENV PATH=C:\ProgramData\chocolatey\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\
+ENV PATH=C:\\ProgramData\\chocolatey\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
 
 # Create virtual environment
 RUN python -m venv C:\\opt\\venv
 ENV PATH=C:\\opt\\venv\\Scripts;C:\\ProgramData\\chocolatey\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
 
 # Install PyTorch and test the built wheel
-RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
+RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
     } else { \
