@@ -28,6 +28,9 @@ RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
+# Add Chocolatey to PATH
+ENV PATH=C:\ProgramData\chocolatey\bin;%PATH%
+
 # Install Python and build tools (cached layer)  
 RUN choco install -y python --version=3.12 visualstudio2019buildtools git
 
@@ -93,6 +96,9 @@ RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Add Chocolatey to PATH for test stage
+ENV PATH=C:\ProgramData\chocolatey\bin;%PATH%
 
 RUN choco install -y python --version=3.12
 
