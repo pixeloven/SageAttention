@@ -33,12 +33,9 @@ RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
 # Add Chocolatey to PATH for subsequent commands
 ENV PATH=C:\ProgramData\chocolatey\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\
 
-# Refresh environment variables  
-RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command "refreshenv"
-
 # Create virtual environment (cached layer)
 RUN python -m venv C:\\opt\\venv
-ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
+ENV PATH=C:\\opt\\venv\\Scripts;C:\\ProgramData\\chocolatey\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
 
 # Upgrade pip and install build tools (cached layer)
 RUN python -m pip install --upgrade pip setuptools wheel packaging
@@ -101,12 +98,9 @@ RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
 # Add Chocolatey to PATH for test stage
 ENV PATH=C:\ProgramData\chocolatey\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\
 
-# Refresh environment variables  
-RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command "refreshenv"
-
 # Create virtual environment
 RUN python -m venv C:\\opt\\venv
-ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
+ENV PATH=C:\\opt\\venv\\Scripts;C:\\ProgramData\\chocolatey\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
 
 # Install PyTorch and test the built wheel
 RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
