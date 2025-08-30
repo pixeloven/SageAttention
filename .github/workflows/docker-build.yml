@@ -1,4 +1,4 @@
-name: Docker Build - SageAttention Wheels
+name: Docker Build - SageAttention Wheels (Optimized Multi-Stage)
 
 on:
   push:
@@ -47,14 +47,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Free Disk Space
+      - name: Free Disk Space (Aggressive)
         uses: jlumbroso/free-disk-space@main
         with:
-          tool-cache: false
+          # Free up additional space by removing cached tools (6GB+)
+          tool-cache: true
+          # Remove standard unwanted software
           android: true
           dotnet: true
           haskell: true
           large-packages: true
+          # Keep some Docker functionality but remove unused images
           docker-images: true
           swap-storage: true
 
@@ -92,6 +95,31 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Free Disk Space (Windows)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # Free up additional space by removing cached tools
+          tool-cache: true
+          # Remove standard unwanted software (works on Windows too)
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          # Remove unused Docker images
+          docker-images: true
+          swap-storage: true
+      
+      - name: Additional Windows cleanup
+        run: |
+          # Remove more unnecessary Windows components
+          Remove-Item -Path "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\IntelliCode" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "C:\Program Files (x86)\Microsoft SDKs\Windows Kits" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "C:\Program Files\Common Files\Microsoft Shared" -Recurse -Force -ErrorAction SilentlyContinue
+          
+          # Clean Windows temp directories
+          Get-ChildItem -Path "C:\Windows\Temp" -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          Get-ChildItem -Path "C:\Users\*\AppData\Local\Temp" -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
       - name: Check Docker configuration
         run: |
@@ -218,8 +246,9 @@ jobs:
           
           echo ""
           echo "Build summary:"
-          echo "- Docker builds completed successfully"
-          echo "- All platforms supported: Linux and Windows"
+          echo "- Docker builds completed successfully using optimized multi-stage architecture"
+          echo "- All platforms supported: Linux and Windows with consistent 5-stage builds"
           echo "- CUDA 12.8.1 with PyTorch 2.7.0 and CUDA 12.9.1 with PyTorch 2.8.0"
-          echo "- Consistent builds using Docker containers"
+          echo "- Optimized dependency caching and shared base images across stages"
+          echo "- BuildKit cache mounts for Linux builds reduce pip installation times"
           echo "- Platform-specific Dockerfiles: dockerfile.builder.linux and dockerfile.builder.windows"

@@ -86,10 +86,25 @@ python tests/test_sageattn.py
 - Automatic CUDA path detection in common locations
 - Compute capability detection from available GPUs
 
+### Optimized Docker Architecture
+The project uses an optimized multi-stage Docker build system for efficient caching and reduced build times:
+
+**Stage Hierarchy**:
+- **base-environment**: System dependencies + Python environment (highly cached)  
+- **pytorch-environment**: + PyTorch installation (cached per CUDA/PyTorch version)
+- **sageattention-builder**: + SageAttention compilation (rebuilds on source changes)
+- **sageattention-wheel**: Wheel extraction (minimal layer)
+- **sageattention-test**: Runtime verification (reuses pytorch-environment)
+
+**Benefits**:
+- **Aggressive caching**: System deps and PyTorch only rebuild when versions change
+- **Space efficient**: No duplicate installations across stages
+- **BuildKit cache mounts**: Linux builds use pip cache mounts for additional optimization
+- **Dependency layering**: Dependencies copied before source code for optimal cache invalidation
+
 ### Platform-Specific Files
-- **dockerfile.builder.linux**: Linux wheel builds
-- **dockerfile.builder.windows**: Windows wheel builds
-- Separate Dockerfiles ensure platform-specific optimization
+- **dockerfile.builder.linux**: Optimized Linux multi-stage build with cache mounts
+- **dockerfile.builder.windows**: Optimized Windows multi-stage build with shared layers
 
 ### Testing
 - Basic functionality test in `tests/test_sageattn.py`

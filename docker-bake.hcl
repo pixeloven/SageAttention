@@ -1,5 +1,6 @@
-# SageAttention Docker Bake Configuration
+# SageAttention Docker Bake Configuration - Optimized Multi-Stage Builds
 # Clear naming convention: {platform}-{pytorch}-{cuda}-{python}
+# Uses optimized multi-stage architecture with shared dependency layers
 
 # Build configuration variables
 variable "PYTHON_VERSION" {
