@@ -22,20 +22,19 @@ ENV TORCH_VERSION=${TORCH_VERSION}
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
-# Install Chocolatey package manager (cached layer)
+# Install Chocolatey and Python in one step to avoid PATH issues
 RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
-    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); \
+    $env:PATH = \"C:\\ProgramData\\chocolatey\\bin;$env:PATH\"; \
+    choco install -y python --version=3.12 visualstudio2019buildtools git
 
-# Add Chocolatey to PATH
-ENV PATH=C:\ProgramData\chocolatey\bin;%PATH%
+# Add Chocolatey to PATH for subsequent commands
+ENV PATH=C:\ProgramData\chocolatey\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\
 
-# Install Python and build tools (cached layer)  
-RUN choco install -y python --version=3.12 visualstudio2019buildtools git
-
-# Refresh environment variables
-RUN refreshenv
+# Refresh environment variables  
+RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command "refreshenv"
 
 # Create virtual environment (cached layer)
 RUN python -m venv C:\\opt\\venv
@@ -91,19 +90,19 @@ ENV TORCH_VERSION=${TORCH_VERSION}
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
-# Install Python for testing
+# Install Chocolatey and Python for testing in one step
 RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
-    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); \
+    $env:PATH = \"C:\\ProgramData\\chocolatey\\bin;$env:PATH\"; \
+    choco install -y python --version=3.12
 
 # Add Chocolatey to PATH for test stage
-ENV PATH=C:\ProgramData\chocolatey\bin;%PATH%
+ENV PATH=C:\ProgramData\chocolatey\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\
 
-RUN choco install -y python --version=3.12
-
-# Refresh environment variables
-RUN refreshenv
+# Refresh environment variables  
+RUN C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command "refreshenv"
 
 # Create virtual environment
 RUN python -m venv C:\\opt\\venv
