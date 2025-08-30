@@ -23,7 +23,7 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install Chocolatey package manager (cached layer)
-RUN pwsh -Command \
+RUN powershell -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
@@ -42,7 +42,7 @@ ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
 RUN python -m pip install --upgrade pip setuptools wheel packaging
 
 # Install PyTorch with appropriate CUDA support (cached layer)
-RUN pwsh -Command \
+RUN powershell -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
     } else { \
@@ -68,13 +68,22 @@ RUN python setup.py bdist_wheel
 
 # Stage 2: Wheel extraction
 FROM scratch AS sageattention-wheel
-COPY --from=sageattention-builder C:\\build\\SageAttention\\dist\\*.whl C:\\wheels
+COPY --from=sageattention-builder C:\\build\\SageAttention\\dist\\*.whl C:\\wheels\\
 
 # Stage 3: Runtime verification
+# Re-declare ARGs for test stage
+ARG CUDA_VERSION
+ARG TORCH_VERSION
+ARG PYTHON_VERSION
 FROM mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022 AS sageattention-test
 
+# Set environment variables from ARGs for test stage
+ENV TORCH_VERSION=${TORCH_VERSION}
+ENV PYTHON_VERSION=${PYTHON_VERSION}
+ENV CUDA_VERSION=${CUDA_VERSION}
+
 # Install Python for testing
-RUN pwsh -Command \
+RUN powershell -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
@@ -89,15 +98,15 @@ RUN python -m venv C:\\opt\\venv
 ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
 
 # Install PyTorch and test the built wheel
-RUN pwsh -Command \
+RUN powershell -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
     } else { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu129 \
     }
 
-# Copy and install the built wheel
-COPY --from=sageattention-builder C:\\build\\SageAttention\\dist\\*.whl C:\\tmp
+# Copy and install the built wheel from wheel stage
+COPY --from=sageattention-wheel C:\\wheels\\*.whl C:\\tmp\\
 RUN python -m pip install C:\\tmp\\*.whl
 
 # Test SageAttention import

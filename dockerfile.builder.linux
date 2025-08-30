@@ -79,7 +79,10 @@ COPY --from=sageattention-builder /build/SageAttention/dist/*.whl ./
 RUN ls -la && echo "Wheel extracted successfully"
 
 # Stage 3: Runtime verification
-# CUDA_VERSION ARG is already declared above
+# Re-declare ARGs for test stage
+ARG CUDA_VERSION
+ARG TORCH_VERSION
+ARG PYTHON_VERSION
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu24.04 AS sageattention-test
 
 # Install Python and PyTorch for testing
