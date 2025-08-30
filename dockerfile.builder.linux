@@ -83,7 +83,18 @@ RUN ls -la && echo "Wheel extracted successfully"
 ARG CUDA_VERSION
 ARG TORCH_VERSION
 ARG PYTHON_VERSION
+
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu24.04 AS sageattention-test
+
+# Re-declare ARGs after FROM (required for Docker multi-stage builds)
+ARG TORCH_VERSION
+ARG PYTHON_VERSION  
+ARG CUDA_VERSION
+
+# Set environment variables from ARGs for test stage
+ENV TORCH_VERSION=${TORCH_VERSION}
+ENV PYTHON_VERSION=${PYTHON_VERSION}
+ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install Python and PyTorch for testing
 RUN apt-get update && apt-get install -y --no-install-recommends \

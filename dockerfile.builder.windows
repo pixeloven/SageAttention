@@ -23,7 +23,7 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install Chocolatey package manager (cached layer)
-RUN powershell -Command \
+RUN pwsh.exe -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
@@ -42,7 +42,7 @@ ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
 RUN python -m pip install --upgrade pip setuptools wheel packaging
 
 # Install PyTorch with appropriate CUDA support (cached layer)
-RUN powershell -Command \
+RUN pwsh.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
     } else { \
@@ -75,7 +75,13 @@ COPY --from=sageattention-builder C:\\build\\SageAttention\\dist\\*.whl C:\\whee
 ARG CUDA_VERSION
 ARG TORCH_VERSION
 ARG PYTHON_VERSION
+
 FROM mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022 AS sageattention-test
+
+# Re-declare ARGs after FROM (required for Docker multi-stage builds)
+ARG TORCH_VERSION
+ARG PYTHON_VERSION
+ARG CUDA_VERSION
 
 # Set environment variables from ARGs for test stage
 ENV TORCH_VERSION=${TORCH_VERSION}
@@ -83,7 +89,7 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install Python for testing
-RUN powershell -Command \
+RUN pwsh.exe -Command \
     Set-ExecutionPolicy Bypass -Scope Process -Force; \
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
@@ -98,7 +104,7 @@ RUN python -m venv C:\\opt\\venv
 ENV PATH=C:\\opt\\venv\\Scripts;%PATH%
 
 # Install PyTorch and test the built wheel
-RUN powershell -Command \
+RUN pwsh.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
         python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
     } else { \
