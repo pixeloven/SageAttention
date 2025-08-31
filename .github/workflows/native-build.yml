@@ -2,7 +2,7 @@ name: Native Build - SageAttention Wheels (Fast CI)
 
 on:
   push:
-    branches: [main, unified-build-workflow]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
