@@ -10,11 +10,11 @@ on:
       torch_version:
         description: "PyTorch version"
         required: false
-        default: "2.8.0"
+        default: "2.5.1"
       cuda_version:
         description: "CUDA version"
         required: false
-        default: "12.9"
+        default: "12.1"
       python_version:
         description: "Python version"
         required: false
@@ -31,14 +31,14 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux builds - PyTorch 2.7 + CUDA 11.8
+          # Linux builds - PyTorch 2.4 + CUDA 11.8
           - platform: linux
-            torch_version: "2.7.0"
+            torch_version: "2.4.1"
             cuda_index: "cu118"
             python_version: "3.12"
-          # Linux builds - PyTorch 2.8 + CUDA 12.1  
+          # Linux builds - PyTorch 2.5 + CUDA 12.1  
           - platform: linux
-            torch_version: "2.8.0"
+            torch_version: "2.5.1"
             cuda_index: "cu121"
             python_version: "3.12"
 
@@ -98,7 +98,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel packaging
           
           # Install PyTorch with appropriate CUDA version
-          if [[ "${{ matrix.torch_version }}" == "2.7.0" ]]; then
+          if [[ "${{ matrix.torch_version }}" == "2.4.1" ]]; then
             pip install torch==${{ matrix.torch_version }} torchvision --index-url https://download.pytorch.org/whl/cu118
           else
             pip install torch==${{ matrix.torch_version }} torchvision --index-url https://download.pytorch.org/whl/cu121
@@ -132,7 +132,7 @@ jobs:
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sageattention-native-wheels-${{ matrix.platform }}-pytorch${{ matrix.torch_version }}-cuda${{ matrix.cuda_version }}
+          name: sageattention-native-wheels-${{ matrix.platform }}-pytorch${{ matrix.torch_version }}-cuda${{ matrix.cuda_index || matrix.cuda_version }}
           path: build/*.whl
           retention-days: 7
 
@@ -142,15 +142,15 @@ jobs:
     strategy:
       matrix:
         include:
-          # Windows builds - PyTorch 2.7 + CUDA 11.8
+          # Windows builds - PyTorch 2.4 + CUDA 11.8
           - platform: windows
-            torch_version: "2.7.0"
+            torch_version: "2.4.1"
             cuda_version: "11.8"
             cuda_version_toolkit: "11.8.0"
             python_version: "3.12"
-          # Windows builds - PyTorch 2.8 + CUDA 12.1
+          # Windows builds - PyTorch 2.5 + CUDA 12.1
           - platform: windows
-            torch_version: "2.8.0"
+            torch_version: "2.5.1"
             cuda_version: "12.1"  
             cuda_version_toolkit: "12.1.1"
             python_version: "3.12"
@@ -252,7 +252,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel packaging
           
           # Install PyTorch with appropriate CUDA version
-          if ("${{ matrix.torch_version }}" -eq "2.7.0") {
+          if ("${{ matrix.torch_version }}" -eq "2.4.1") {
             pip install torch=="${{ matrix.torch_version }}" torchvision --index-url https://download.pytorch.org/whl/cu118
           } else {
             pip install torch=="${{ matrix.torch_version }}" torchvision --index-url https://download.pytorch.org/whl/cu121  
@@ -288,7 +288,7 @@ jobs:
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sageattention-native-wheels-${{ matrix.platform }}-pytorch${{ matrix.torch_version }}-cuda${{ matrix.cuda_version }}
+          name: sageattention-native-wheels-${{ matrix.platform }}-pytorch${{ matrix.torch_version }}-cuda${{ matrix.cuda_index || matrix.cuda_version }}
           path: build/*.whl
           retention-days: 7
 
@@ -377,7 +377,7 @@ jobs:
           echo "Build summary:"
           echo "- Native builds completed successfully using GitHub runner environments"
           echo "- Both Linux (ubuntu-latest) and Windows (windows-2022) supported"
-          echo "- CUDA 12.8.1 with PyTorch 2.7.0 and CUDA 12.9.1 with PyTorch 2.8.0"
+          echo "- CUDA 11.8 with PyTorch 2.4.1 and CUDA 12.1 with PyTorch 2.5.1"
           echo "- Direct CUDA Toolkit installation with cuDNN support"
           echo "- Native Python environments with proper CUDA integration"
           echo "- Significantly faster than Docker builds (~5-10x speed improvement)"
