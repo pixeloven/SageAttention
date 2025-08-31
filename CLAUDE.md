@@ -90,11 +90,10 @@ python tests/test_sageattn.py
 The project uses an optimized multi-stage Docker build system for efficient caching and reduced build times:
 
 **Stage Hierarchy**:
-- **base-environment**: System dependencies + Python environment (highly cached)  
-- **pytorch-environment**: + PyTorch installation (cached per CUDA/PyTorch version)
-- **sageattention-builder**: + SageAttention compilation (rebuilds on source changes)
-- **sageattention-wheel**: Wheel extraction (minimal layer)
-- **sageattention-test**: Runtime verification (reuses pytorch-environment)
+- **runtime**: System dependencies + Python environment + PyTorch (highly cached)  
+- **builder**: + SageAttention compilation (wheel stays embedded, rebuilds on source changes)
+- **wheel**: Wheel extraction from builder using FROM scratch (minimal layer)
+- **test**: Runtime verification (installs wheel from builder)
 
 **Benefits**:
 - **Aggressive caching**: System deps and PyTorch only rebuild when versions change
@@ -112,4 +111,4 @@ The project uses an optimized multi-stage Docker build system for efficient cach
 - Docker-based testing ensures consistent test environments
 
 ### Wheel Output
-Built wheels are saved to `./builder/` directory (git-ignored) with standard pip naming convention.
+Built wheels are saved to `./dist/` directory (git-ignored) with standard pip naming convention.

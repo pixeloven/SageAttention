@@ -23,9 +23,9 @@ variable "TORCH_CUDA_ARCH_LIST" {
 # Format: linux-pytorch{cuda}-{python}
 target "linux-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.linux"
-  target = "sageattention-wheel"
+  target = "wheel"
   platforms = ["linux/amd64"]
-  output = ["type=local,dest=./build"]
+  output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -38,9 +38,9 @@ target "linux-pytorch27-cu128-python312" {
 
 target "linux-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.linux"
-  target = "sageattention-wheel"
+  target = "wheel"
   platforms = ["linux/amd64"]
-  output = ["type=local,dest=./build"]
+  output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -55,8 +55,8 @@ target "linux-pytorch28-cu129-python312" {
 # Format: windows-pytorch{cuda}-{python}
 target "windows-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.windows"
-  target = "sageattention-wheel"
-  output = ["type=local,dest=./build"]
+  target = "wheel"
+  output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -69,8 +69,8 @@ target "windows-pytorch27-cu128-python312" {
 
 target "windows-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.windows"
-  target = "sageattention-wheel"
-  output = ["type=local,dest=./build"]
+  target = "wheel"
+  output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -85,7 +85,7 @@ target "windows-pytorch28-cu129-python312" {
 # Format: test-{platform}-pytorch{cuda}-{python}
 target "test-linux-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.linux"
-  target = "sageattention-test"
+  target = "test"
   platforms = ["linux/amd64"]
   args = {
     CUDA_VERSION = "12.8.1"
@@ -99,7 +99,7 @@ target "test-linux-pytorch27-cu128-python312" {
 
 target "test-linux-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.linux"
-  target = "sageattention-test"
+  target = "test"
   platforms = ["linux/amd64"]
   args = {
     CUDA_VERSION = "12.9.1"
@@ -113,7 +113,7 @@ target "test-linux-pytorch28-cu129-python312" {
 
 target "test-windows-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.windows"
-  target = "sageattention-test"
+  target = "test"
   args = {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -126,7 +126,7 @@ target "test-windows-pytorch27-cu128-python312" {
 
 target "test-windows-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.windows"
-  target = "sageattention-test"
+  target = "test"
   args = {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION

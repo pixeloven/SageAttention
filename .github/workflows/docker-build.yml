@@ -74,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sageattention-docker-wheels-${{ matrix.platform }}
-          path: build/*.whl
+          path: dist/*.whl
           retention-days: 7
 
   # Job 2: Build Windows wheels using Docker
@@ -174,25 +174,25 @@ jobs:
       - name: Build wheel using docker build
         run: |
           # Build the wheel directly using docker build instead of buildx
-          docker build -f dockerfile.builder.windows --target sageattention-wheel --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-wheel .
+          docker build -f dockerfile.builder.windows --target wheel --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-wheel .
           
           # Extract wheel from container
           $containerId = docker create sageattention-wheel
-          docker cp "${containerId}:C:\wheels" ./build
+          docker cp "${containerId}:C:\wheels" ./dist
           docker rm $containerId
 
       # Test wheel using Docker
       - name: Test wheel using docker build
         run: |
           # Test the build
-          docker build -f dockerfile.builder.windows --target sageattention-test --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-test .
+          docker build -f dockerfile.builder.windows --target test --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-test .
           docker run --rm sageattention-test
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
           name: sageattention-docker-wheels-${{ matrix.platform }}
-          path: build/*.whl
+          path: dist/*.whl
           retention-days: 7
 
   # Job 3: Publish wheels

@@ -93,7 +93,7 @@ docker buildx bake --file docker-bake.hcl default
 docker buildx bake --file docker-bake.hcl linux-pytorch28-cu129-python312
 ```
 
-Wheels are saved to the `./builder/` directory (git-ignored).
+Wheels are saved to the `./dist/` directory (git-ignored).
 
 ## 📦 CI/CD
 
