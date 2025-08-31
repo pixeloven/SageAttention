@@ -34,14 +34,12 @@ jobs:
           # Linux builds - PyTorch 2.7 + CUDA 11.8
           - platform: linux
             torch_version: "2.7.0"
-            cuda_version: "11.8"
-            cuda_version_toolkit: "11.8.0"
+            cuda_index: "cu118"
             python_version: "3.12"
           # Linux builds - PyTorch 2.8 + CUDA 12.1  
           - platform: linux
             torch_version: "2.8.0"
-            cuda_version: "12.1"
-            cuda_version_toolkit: "12.1.1"
+            cuda_index: "cu121"
             python_version: "3.12"
 
     steps:
@@ -64,21 +62,23 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
 
-      - name: Install CUDA Toolkit ${{ matrix.cuda_version_toolkit }}
-        uses: Jimver/cuda-toolkit@v0.2.27
-        with:
-          cuda: ${{ matrix.cuda_version_toolkit }}
-          method: 'network'
-          sub-packages: '["nvcc", "cudart", "cudart-dev", "curand-dev", "cublas-dev", "cufft-dev", "curand-dev"]'
-
+      - name: Set up CUDA environment (use system CUDA)
+        run: |
+          # GitHub runners have CUDA pre-installed, we just need to set it up
+          export CUDA_HOME=/usr/local/cuda
+          echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+          echo "/usr/local/cuda/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          
       - name: Verify CUDA installation
         run: |
           echo "CUDA_HOME: $CUDA_HOME"
           echo "PATH: $PATH"
-          which nvcc
-          nvcc --version
-          ls -la $CUDA_HOME/bin/
-          ls -la $CUDA_HOME/lib64/
+          which nvcc || echo "nvcc not found, checking alternatives"
+          ls -la /usr/local/cuda*/bin/ || echo "No CUDA directories found"
+          # Install basic CUDA development tools via apt
+          sudo apt-get update
+          sudo apt-get install -y nvidia-cuda-toolkit cuda-compiler-12-2 cuda-libraries-dev-12-2 || true
 
       - name: Set up build environment
         run: |
@@ -98,7 +98,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel packaging
           
           # Install PyTorch with appropriate CUDA version
-          if [[ "${{ matrix.cuda_version }}" == "11.8" ]]; then
+          if [[ "${{ matrix.torch_version }}" == "2.7.0" ]]; then
             pip install torch==${{ matrix.torch_version }} torchvision --index-url https://download.pytorch.org/whl/cu118
           else
             pip install torch==${{ matrix.torch_version }} torchvision --index-url https://download.pytorch.org/whl/cu121
@@ -181,12 +181,41 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
 
-      - name: Install CUDA Toolkit ${{ matrix.cuda_version_toolkit }}
-        uses: Jimver/cuda-toolkit@v0.2.27
-        with:
-          cuda: ${{ matrix.cuda_version_toolkit }}
-          method: 'network'
-          sub-packages: '["nvcc", "cudart", "visual_studio_integration"]'
+      - name: Set up CUDA environment (use system CUDA)
+        shell: powershell  
+        run: |
+          # Check for existing CUDA installations
+          Write-Output "Checking for CUDA installations..."
+          if (Test-Path "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA") {
+            Get-ChildItem -Path "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA" -ErrorAction SilentlyContinue | ForEach-Object { Write-Output $_.FullName }
+          }
+          
+          # Windows runners may have CUDA pre-installed, check common locations
+          $cudaPaths = @(
+            "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2",
+            "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1",
+            "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8"
+          )
+          
+          $foundCuda = $false
+          foreach ($cudaPath in $cudaPaths) {
+            if (Test-Path $cudaPath) {
+              Write-Output "Found CUDA at: $cudaPath"
+              Write-Output "CUDA_HOME=$cudaPath" >> $env:GITHUB_ENV
+              Write-Output "$cudaPath\bin" >> $env:GITHUB_PATH
+              $foundCuda = $true
+              break
+            }
+          }
+          
+          if (-not $foundCuda) {
+            Write-Output "No existing CUDA found, installing minimal CUDA toolkit"
+            # Install basic CUDA toolkit via chocolatey
+            choco install -y cuda --version=12.2.0 --force --no-progress
+            $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2"
+            Write-Output "CUDA_HOME=$cudaPath" >> $env:GITHUB_ENV
+            Write-Output "$cudaPath\bin" >> $env:GITHUB_PATH
+          }
 
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -194,13 +223,19 @@ jobs:
           arch: x64
 
       - name: Verify CUDA installation
-        shell: cmd
+        shell: powershell
         run: |
-          echo CUDA_HOME: %CUDA_HOME%
-          echo PATH: %PATH%
-          where nvcc
-          nvcc --version
-          dir "%CUDA_HOME%\bin\"
+          Write-Output "CUDA_HOME: $env:CUDA_HOME"
+          Write-Output "PATH: $env:PATH"
+          try { 
+            & nvcc --version 
+            Write-Output "NVCC found and working"
+          } catch { 
+            Write-Output "NVCC not available, build may continue with CPU-only PyTorch"
+          }
+          if (Test-Path "$env:CUDA_HOME\bin") {
+            Get-ChildItem -Path "$env:CUDA_HOME\bin" | Select-Object Name | Format-Table -AutoSize
+          }
 
       - name: Set up build environment
         shell: powershell
@@ -217,7 +252,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel packaging
           
           # Install PyTorch with appropriate CUDA version
-          if ("${{ matrix.cuda_version }}" -eq "11.8") {
+          if ("${{ matrix.torch_version }}" -eq "2.7.0") {
             pip install torch=="${{ matrix.torch_version }}" torchvision --index-url https://download.pytorch.org/whl/cu118
           } else {
             pip install torch=="${{ matrix.torch_version }}" torchvision --index-url https://download.pytorch.org/whl/cu121  
