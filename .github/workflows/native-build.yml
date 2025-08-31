@@ -117,7 +117,14 @@ jobs:
       - name: Create build directory and move wheel
         run: |
           mkdir -p build
+          # Clean build directory first to ensure only wheels
+          rm -rf build/*
+          # Move only wheel files
           mv dist/*.whl build/
+          # Remove any non-wheel files that might have been created
+          find build/ -type f ! -name "*.whl" -delete
+          find build/ -type d -empty -delete
+          echo "Final build directory contents:"
           ls -la build/
 
       - name: Test wheel installation
@@ -273,7 +280,13 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path build
+          # Clean build directory first to ensure only wheels
+          Remove-Item build\* -Recurse -Force -ErrorAction SilentlyContinue
+          # Move only wheel files
           Move-Item dist\*.whl build\
+          # Remove any non-wheel files that might have been created
+          Get-ChildItem build\ | Where-Object { $_.Extension -ne ".whl" } | Remove-Item -Recurse -Force
+          Write-Output "Final build directory contents:"
           Get-ChildItem build\
 
       - name: Test wheel installation
