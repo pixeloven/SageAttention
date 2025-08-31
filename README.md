@@ -6,32 +6,32 @@ High-performance attention mechanisms for PyTorch with CUDA support.
 
 ### Using Docker (Recommended)
 
-Build wheels for your platform and PyTorch version:
+Build wheels with automatic version naming:
 
 ```bash
-# Build for Linux + PyTorch 2.8 + CUDA 12.9 + Python 3.12
+# Build specific configuration
 docker buildx bake --file docker-bake.hcl linux-pytorch28-cu129-python312
 
-# Build for Linux + PyTorch 2.7 + CUDA 12.8 + Python 3.12  
-docker buildx bake --file docker-bake.hcl linux-pytorch27-cu128-python312
+# Build all Linux wheels  
+docker buildx bake --file docker-bake.hcl linux
 
-# Build for Windows + PyTorch 2.8 + CUDA 12.9 + Python 3.12
-docker buildx bake --file docker-bake.hcl windows-pytorch28-cu129-python312
-
-# Build all platforms and versions
+# Build all configurations
 docker buildx bake --file docker-bake.hcl all
+
+# Build default configuration (Linux + PyTorch 2.8 + CUDA 12.9)
+docker buildx bake --file docker-bake.hcl default
 ```
 
 ### Wheel Naming Convention
 
-Wheels follow the standard pip naming convention:
+Wheels include PyTorch and CUDA version information:
 ```
-sageattention-{version}-cp{python}-cp{python}-{platform}.whl
+sageattention-{version}-torch{pytorch}.cu{cuda}-cp{python}-cp{python}-{platform}.whl
 ```
 
 **Examples:**
-- `sageattention-0.1.0-cp312-cp312-manylinux_x86_64.whl` - Linux + Python 3.12
-- `sageattention-0.1.0-cp312-cp312-win_amd64.whl` - Windows + Python 3.12
+- `sageattention-2.2.0-torch280.cu129-cp312-cp312-linux_x86_64.whl` - Linux + PyTorch 2.8.0 + CUDA 12.9
+- `sageattention-2.2.0-torch270.cu128-cp312-cp312-win_amd64.whl` - Windows + PyTorch 2.7.0 + CUDA 12.8
 
 **Build Matrix:**
 - **Platforms:** Linux (manylinux_x86_64), Windows (win_amd64)

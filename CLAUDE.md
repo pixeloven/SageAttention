@@ -9,13 +9,13 @@ SageAttention is a high-performance PyTorch extension providing optimized CUDA a
 ## Build System
 
 ### Docker-based Building (Primary)
-Use Docker Bake for consistent builds across platforms:
+Use Docker Bake for consistent builds with automatic wheel versioning:
 
 ```bash
 # Build for current platform (Linux + PyTorch 2.8 + CUDA 12.9)
 docker buildx bake --file docker-bake.hcl default
 
-# Build specific configurations
+# Build specific configurations (wheels automatically include version info)
 docker buildx bake --file docker-bake.hcl linux-pytorch28-cu129-python312
 docker buildx bake --file docker-bake.hcl windows-pytorch28-cu129-python312
 
@@ -111,4 +111,13 @@ The project uses an optimized multi-stage Docker build system for efficient cach
 - Docker-based testing ensures consistent test environments
 
 ### Wheel Output
-Built wheels are saved to `./dist/` directory (git-ignored) with standard pip naming convention.
+Built wheels are saved to `./dist/` directory (git-ignored) with version-specific naming:
+
+**Naming Convention:**
+- `sageattention-{version}-torch{pytorch}.cu{cuda}-{python}-{abi}-{platform}.whl`
+- Example: `sageattention-2.2.0-torch280.cu129-cp312-cp312-linux_x86_64.whl`
+
+**Benefits:**
+- Multiple PyTorch/CUDA versions can coexist in same directory
+- Clear version identification for deployment and testing
+- No overwrites when building multiple configurations

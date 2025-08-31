@@ -25,7 +25,7 @@ target "linux-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.linux"
   target = "wheel"
   platforms = ["linux/amd64"]
-  output = ["type=local,dest=./dist"]
+  output = ["type=local,dest=./dist,src=/wheels"]
   args = {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -40,7 +40,7 @@ target "linux-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.linux"
   target = "wheel"
   platforms = ["linux/amd64"]
-  output = ["type=local,dest=./dist"]
+  output = ["type=local,dest=./dist,src=/wheels"]
   args = {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -56,7 +56,7 @@ target "linux-pytorch28-cu129-python312" {
 target "windows-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.windows"
   target = "wheel"
-  output = ["type=local,dest=./dist"]
+  output = ["type=local,dest=./dist,src=C:/wheels"]
   args = {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -70,7 +70,7 @@ target "windows-pytorch27-cu128-python312" {
 target "windows-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.windows"
   target = "wheel"
-  output = ["type=local,dest=./dist"]
+  output = ["type=local,dest=./dist,src=C:/wheels"]
   args = {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION

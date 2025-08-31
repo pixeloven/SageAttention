@@ -91,14 +91,45 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN python setup.py bdist_wheel
 
 # Stage 3: Wheel extraction - outputs wheels with version naming
-FROM scratch AS wheel
+FROM alpine:latest AS wheel
 
 # Re-declare ARGs for wheel naming
 ARG TORCH_VERSION
 ARG CUDA_VERSION
 
-# Copy wheels from builder and rename with version info
-COPY --from=builder /src/dist/*.whl /
+# Install bash for renaming logic
+RUN apk add --no-cache bash
+
+# Copy wheels from builder
+COPY --from=builder /src/dist/*.whl /tmp/
+
+# Rename wheels with version information and copy to final location
+RUN mkdir -p /wheels && \
+    for wheel in /tmp/*.whl; do \
+        if [ -f "$wheel" ]; then \
+            wheel_name=$(basename "$wheel"); \
+            # Parse wheel name: name-version-python-abi-platform.whl \
+            if echo "$wheel_name" | grep -qE '^([^-]+)-([^-]+)-([^-]+)-([^-]+)-(.+)\.whl$'; then \
+                pkg_name=$(echo "$wheel_name" | cut -d- -f1); \
+                pkg_version=$(echo "$wheel_name" | cut -d- -f2); \
+                python_tag=$(echo "$wheel_name" | cut -d- -f3); \
+                abi_tag=$(echo "$wheel_name" | cut -d- -f4); \
+                platform_tag=$(echo "$wheel_name" | cut -d- -f5- | sed 's/\.whl$//'); \
+                # Create version tags \
+                torch_ver=$(echo "${TORCH_VERSION}" | tr -d '.'); \
+                cuda_ver=$(echo "${CUDA_VERSION}" | cut -d. -f1,2 | tr -d '.'); \
+                # Create new filename \
+                new_name="${pkg_name}-${pkg_version}-torch${torch_ver}.cu${cuda_ver}-${python_tag}-${abi_tag}-${platform_tag}.whl"; \
+                cp "$wheel" "/wheels/$new_name"; \
+                echo "Renamed: $wheel_name -> $new_name"; \
+            else \
+                echo "Warning: Could not parse wheel name: $wheel_name"; \
+                cp "$wheel" "/wheels/"; \
+            fi; \
+        fi; \
+    done && \
+    rm -rf /tmp/*.whl && \
+    ls -la /wheels/
 
 # Stage 4: Test - verifies the built wheel works correctly  
 FROM runtime AS test

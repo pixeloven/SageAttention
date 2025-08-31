@@ -83,14 +83,39 @@ RUN python -m pip install numpy packaging pybind11
 RUN python setup.py bdist_wheel
 
 # Stage 3: Wheel extraction - outputs wheels with version naming
-FROM scratch AS wheel
+FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS wheel
 
 # Re-declare ARGs for wheel naming
 ARG TORCH_VERSION
 ARG CUDA_VERSION
 
-# Copy wheels from builder
-COPY --from=builder C:\\src\\dist\\*.whl /
+# Copy wheels from builder to temp location
+COPY --from=builder C:\\src\\dist\\*.whl C:\\temp\\
+
+# Rename wheels with version information using PowerShell
+RUN powershell -Command \
+    "New-Item -ItemType Directory -Path C:\\wheels -Force | Out-Null; \
+    $torchVer = $env:TORCH_VERSION -replace '\\.', ''; \
+    $cudaVer = $env:CUDA_VERSION -replace '\\.(\\d+)$', '' -replace '\\.', ''; \
+    Get-ChildItem C:\\temp\\*.whl | ForEach-Object { \
+        $wheelName = $_.Name; \
+        Write-Host \"Processing wheel: $wheelName\"; \
+        if ($wheelName -match '^([^-]+)-([^-]+)-([^-]+)-([^-]+)-(.+)\\.whl$') { \
+            $pkgName = $matches[1]; \
+            $pkgVersion = $matches[2]; \
+            $pythonTag = $matches[3]; \
+            $abiTag = $matches[4]; \
+            $platformTag = $matches[5]; \
+            $newName = \"$pkgName-$pkgVersion-torch$torchVer.cu$cudaVer-$pythonTag-$abiTag-$platformTag.whl\"; \
+            Copy-Item $_.FullName \"C:\\wheels\\$newName\"; \
+            Write-Host \"Renamed: $wheelName -> $newName\"; \
+        } else { \
+            Write-Host \"Warning: Could not parse wheel name: $wheelName\"; \
+            Copy-Item $_.FullName \"C:\\wheels\\\"; \
+        } \
+    }; \
+    Remove-Item C:\\temp\\*.whl -Force -ErrorAction SilentlyContinue; \
+    Get-ChildItem C:\\wheels\\ | Format-Table Name, Length"
 
 # Stage 4: Test - verifies the built wheel works correctly
 FROM runtime AS test
