@@ -130,7 +130,7 @@ def get_build_tag():
             torch_ver = torch_version.replace('.', '')  # "280"
             cuda_ver = '.'.join(cuda_version_str.split('.')[:2]).replace('.', '')  # "129"
             
-            build_tag = f"torch{torch_ver}.cu{cuda_ver}"
+            build_tag = f"{torch_ver}.{cuda_ver}"
             
             # Add optional wheel version suffix from environment
             wheel_suffix = os.environ.get("SAGEATTENTION_WHEEL_VERSION_SUFFIX", "")

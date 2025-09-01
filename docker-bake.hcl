@@ -1,7 +1,7 @@
 # SageAttention Docker Bake Configuration - Optimized Multi-Stage Builds
 # Clear naming convention: {platform}-{pytorch}-{cuda}-{python}
 # Uses optimized multi-stage architecture with shared dependency layers
-# Generates PEP 427 compliant wheels with build tags: sageattention-2.2.0-torch{ver}.cu{ver}-cp312-cp312-{platform}.whl
+# Generates PEP 427 compliant wheels with build tags: sageattention-2.2.0-{torch_ver}.{cuda_ver}-cp312-cp312-{platform}.whl
 
 # Build configuration variables
 variable "PYTHON_VERSION" {

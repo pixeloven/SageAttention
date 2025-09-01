@@ -115,8 +115,8 @@ Built wheels are saved to `./dist/` directory (git-ignored) with PEP 427 complia
 
 **Naming Convention (PEP 427 Compliant):**
 - `sageattention-{version}-{build_tag}-{python}-{abi}-{platform}.whl`
-- Build tag format: `torch{pytorch_version}.cu{cuda_version}`
-- Example: `sageattention-2.2.0-torch280.cu129-cp312-cp312-linux_x86_64.whl`
+- Build tag format: `{pytorch_version}.{cuda_version}` (digits required by PEP 427)
+- Example: `sageattention-2.2.0-280.129-cp312-cp312-linux_x86_64.whl`
 
 **Benefits:**
 - **PEP 427 compliance**: Follows Python wheel naming standards
