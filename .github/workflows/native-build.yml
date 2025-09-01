@@ -210,39 +210,11 @@ jobs:
           python-version: ${{ matrix.python_version }}
 
       - name: Install CUDA Toolkit (Windows)
-        shell: powershell  
-        run: |
-          # Install CUDA based on matrix version
-          $cudaVersionFull = "${{ matrix.cuda_version_full }}"
-          $cudaMajorMinor = "${{ matrix.cuda_version }}"
-          
-          if ($cudaMajorMinor -eq "12.8") {
-            $installerUrl = "https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_566.14_windows.exe"
-          } elseif ($cudaMajorMinor -eq "12.9") {
-            $installerUrl = "https://developer.download.nvidia.com/compute/cuda/12.9.1/local_installers/cuda_12.9.1_571.21_windows.exe"
-          } else {
-            throw "Unsupported CUDA version: $cudaMajorMinor"
-          }
-          
-          Write-Output "Installing CUDA Toolkit $cudaVersionFull..."
-          
-          # Download CUDA installer
-          $installerPath = "$env:TEMP\cuda_installer.exe"
-          Write-Output "Downloading CUDA installer from $installerUrl"
-          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
-          
-          # Install CUDA toolkit (silent install with minimal components)
-          Write-Output "Running CUDA installer..."
-          Start-Process -FilePath $installerPath -ArgumentList "-s" -Wait -NoNewWindow
-          
-          # Set environment variables
-          $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaMajorMinor"
-          Write-Output "CUDA_HOME=$cudaPath" >> $env:GITHUB_ENV
-          Write-Output "$cudaPath\bin" >> $env:GITHUB_PATH
-          Write-Output "CUDA_PATH=$cudaPath" >> $env:GITHUB_ENV
-          
-          # Cleanup installer
-          Remove-Item $installerPath -ErrorAction SilentlyContinue
+        uses: Jimver/cuda-toolkit@v0.2.16
+        with:
+          cuda: '${{ matrix.cuda_version_full }}'
+          method: 'network'
+          sub-packages: '["nvcc", "cudart", "cublas", "cusparse", "curand"]'
 
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
