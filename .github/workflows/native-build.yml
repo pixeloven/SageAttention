@@ -62,36 +62,54 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
 
-      - name: Set up CUDA environment (use system CUDA)
+      - name: Install CUDA Toolkit
         run: |
-          # GitHub runners have CUDA pre-installed, we just need to set it up
-          export CUDA_HOME=/usr/local/cuda
-          echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
-          echo "/usr/local/cuda/bin" >> $GITHUB_PATH
-          echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          # Remove any existing broken CUDA installations
+          sudo apt-get remove --purge -y cuda* nvidia* || true
+          sudo apt-get autoremove -y
           
+          # Add NVIDIA's official repository
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
+          sudo dpkg -i cuda-keyring_1.0-1_all.deb
+          sudo apt-get update
+          
+          # Install appropriate CUDA Toolkit version based on matrix
+          if [[ "${{ matrix.cuda_index }}" == "cu118" ]]; then
+            sudo apt-get install -y cuda-toolkit-11-8 cuda-compiler-11-8 cuda-cudart-dev-11-8
+            export CUDA_HOME=/usr/local/cuda-11.8
+            echo "CUDA_HOME=/usr/local/cuda-11.8" >> $GITHUB_ENV
+            echo "/usr/local/cuda-11.8/bin" >> $GITHUB_PATH
+            echo "LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+            sudo ln -sf /usr/local/cuda-11.8 /usr/local/cuda
+          else
+            sudo apt-get install -y cuda-toolkit-12-1 cuda-compiler-12-1 cuda-cudart-dev-12-1
+            export CUDA_HOME=/usr/local/cuda-12.1
+            echo "CUDA_HOME=/usr/local/cuda-12.1" >> $GITHUB_ENV
+            echo "/usr/local/cuda-12.1/bin" >> $GITHUB_PATH
+            echo "LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+            sudo ln -sf /usr/local/cuda-12.1 /usr/local/cuda
+          fi
+
       - name: Verify CUDA installation
         run: |
           echo "CUDA_HOME: $CUDA_HOME"
           echo "PATH: $PATH"
-          which nvcc || echo "nvcc not found, checking alternatives"
-          ls -la /usr/local/cuda*/bin/ || echo "No CUDA directories found"
-          # Install basic CUDA development tools via apt
-          sudo apt-get update
-          sudo apt-get install -y nvidia-cuda-toolkit cuda-compiler-12-2 cuda-libraries-dev-12-2 || true
+          which nvcc
+          nvcc --version
+          ls -la $CUDA_HOME/bin/
+          echo "CUDA installation verified successfully"
 
       - name: Set up build environment
         run: |
           # Set environment variables for the build
-          echo "CUDA_HOME=$CUDA_HOME" >> $GITHUB_ENV
           echo "TORCH_VERSION=${{ matrix.torch_version }}" >> $GITHUB_ENV
-          echo "CUDA_VERSION=${{ matrix.cuda_version_toolkit }}" >> $GITHUB_ENV
+          if [[ "${{ matrix.cuda_index }}" == "cu118" ]]; then
+            echo "CUDA_VERSION=11.8.0" >> $GITHUB_ENV
+          else
+            echo "CUDA_VERSION=12.1.0" >> $GITHUB_ENV
+          fi
           echo "PYTHON_VERSION=${{ matrix.python_version }}" >> $GITHUB_ENV
           echo "TORCH_CUDA_ARCH_LIST=8.0;8.6;8.9;9.0;12.0" >> $GITHUB_ENV
-          
-          # Ensure CUDA is in PATH
-          echo "$CUDA_HOME/bin" >> $GITHUB_PATH
-          echo "LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
       - name: Install PyTorch and dependencies
         run: |
@@ -358,40 +376,3 @@ jobs:
             echo "Uploading $wheel to GitHub Packages..."
             twine upload --repository github "$wheel"
           done
-
-  # Job 4: Compare native vs Docker builds  
-  compare-builds:
-    needs: [build-linux-wheels-native, build-windows-wheels-native]
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download native wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: sageattention-native-wheels-*
-          merge-multiple: true
-          path: native-wheels/
-
-      - name: Compare build results
-        run: |
-          echo "=== Native Build Results ==="
-          echo "Wheels built:"
-          find native-wheels/ -name "*.whl" -type f | sort
-          
-          echo ""
-          echo "Wheel sizes:"
-          find native-wheels/ -name "*.whl" -type f -exec ls -lh {} \;
-          
-          echo ""
-          echo "Build summary:"
-          echo "- Native builds completed successfully using GitHub runner environments"
-          echo "- Both Linux (ubuntu-latest) and Windows (windows-2022) supported"
-          echo "- CUDA 11.8 with PyTorch 2.4.1 and CUDA 12.1 with PyTorch 2.5.1"
-          echo "- Direct CUDA Toolkit installation with cuDNN support"
-          echo "- Native Python environments with proper CUDA integration"
-          echo "- Significantly faster than Docker builds (~5-10x speed improvement)"
-          echo "- Direct hardware access for optimal CUDA compilation"

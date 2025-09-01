@@ -64,12 +64,16 @@ if CUDA_HOME is None:
     
     for cuda_path in cuda_paths:
         if cuda_path and os.path.exists(cuda_path):
-            os.environ["CUDA_HOME"] = cuda_path
-            print(f"Found CUDA at: {cuda_path}")
-            break
+            nvcc_path = os.path.join(cuda_path, "bin", "nvcc")
+            if os.path.isfile(nvcc_path):
+                os.environ["CUDA_HOME"] = cuda_path
+                print(f"Found CUDA at: {cuda_path}")
+                break
+            else:
+                print(f"Found CUDA directory at {cuda_path} but nvcc compiler not found")
     else:
         raise RuntimeError(
-            "Cannot find CUDA_HOME. CUDA must be available to build the package. "
+            "Cannot find CUDA_HOME with nvcc compiler. CUDA toolkit must be installed to build the package. "
             "Tried paths: /usr/local/cuda, /usr/local/cuda-12.9, /usr/local/cuda-12.8, "
             "/usr/local/cuda-12.4, /usr/local/cuda-12.3, /usr/local/cuda-12.0")
     
@@ -81,7 +85,11 @@ def get_nvcc_cuda_version(cuda_dir: str) -> Version:
 
     Adapted from https://github.com/NVIDIA/apex/blob/8b7a1ff183741dd8f9b87e7bafd04cfde99cea28/setup.py
     """
-    nvcc_output = subprocess.check_output([cuda_dir + "/bin/nvcc", "-V"],
+    nvcc_path = os.path.join(cuda_dir, "bin", "nvcc")
+    if not os.path.isfile(nvcc_path):
+        raise RuntimeError(f"nvcc not found at {nvcc_path}. CUDA compiler is required to build the package.")
+    
+    nvcc_output = subprocess.check_output([nvcc_path, "-V"],
                                           universal_newlines=True)
     output = nvcc_output.split()
     release_idx = output.index("release") + 1

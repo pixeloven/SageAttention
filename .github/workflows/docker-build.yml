@@ -239,37 +239,3 @@ jobs:
             echo "Uploading $wheel to GitHub Packages..."
             twine upload --repository github "$wheel"
           done
-
-  # Job 4: Compare build results
-  compare-builds:
-    needs: [build-linux-wheels, build-windows-wheels]
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download Docker wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: sageattention-docker-wheels-*
-
-      - name: Compare build results
-        run: |
-          echo "=== Docker Build Results ==="
-          echo "Wheels built:"
-          find . -name "*.whl" -type f | sort
-          
-          echo ""
-          echo "Wheel sizes:"
-          find . -name "*.whl" -type f -exec ls -lh {} \;
-          
-          echo ""
-          echo "Build summary:"
-          echo "- Docker builds completed successfully using optimized multi-stage architecture"
-          echo "- All platforms supported: Linux and Windows with consistent 5-stage builds"
-          echo "- CUDA 12.8.1 with PyTorch 2.7.0 and CUDA 12.9.1 with PyTorch 2.8.0"
-          echo "- Optimized dependency caching and shared base images across stages"
-          echo "- BuildKit cache mounts for Linux builds reduce pip installation times"
-          echo "- Platform-specific Dockerfiles: dockerfile.builder.linux and dockerfile.builder.windows"
