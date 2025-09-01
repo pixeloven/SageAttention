@@ -35,11 +35,13 @@ jobs:
           - platform: linux
             torch_version: "2.4.1"
             cuda_index: "cu118"
+            cuda_version: "11.8"
             python_version: "3.12"
           # Linux builds - PyTorch 2.5 + CUDA 12.1  
           - platform: linux
             torch_version: "2.5.1"
             cuda_index: "cu121"
+            cuda_version: "12.1"
             python_version: "3.12"
 
     steps:
@@ -157,7 +159,7 @@ jobs:
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sageattention-native-wheels-${{ matrix.platform }}-pytorch${{ matrix.torch_version }}-cuda${{ matrix.cuda_index || matrix.cuda_version }}
+          name: sageattention-native-wheels-${{ matrix.platform }}-pytorch${{ matrix.torch_version }}-${{ matrix.cuda_index }}
           path: build/*.whl
           retention-days: 7
 
@@ -170,14 +172,14 @@ jobs:
           # Windows builds - PyTorch 2.4 + CUDA 11.8
           - platform: windows
             torch_version: "2.4.1"
+            cuda_index: "cu118"
             cuda_version: "11.8"
-            cuda_version_toolkit: "11.8.0"
             python_version: "3.12"
           # Windows builds - PyTorch 2.5 + CUDA 12.1
           - platform: windows
             torch_version: "2.5.1"
-            cuda_version: "12.1"  
-            cuda_version_toolkit: "12.1.1"
+            cuda_index: "cu121"
+            cuda_version: "12.1"
             python_version: "3.12"
 
     steps:
@@ -206,41 +208,39 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
 
-      - name: Set up CUDA environment (use system CUDA)
+      - name: Install CUDA Toolkit (Windows)
         shell: powershell  
         run: |
-          # Check for existing CUDA installations
-          Write-Output "Checking for CUDA installations..."
-          if (Test-Path "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA") {
-            Get-ChildItem -Path "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA" -ErrorAction SilentlyContinue | ForEach-Object { Write-Output $_.FullName }
+          # Determine CUDA version based on matrix
+          if ("${{ matrix.cuda_version }}" -eq "11.8") {
+            $cudaVersion = "11.8.0"
+            $cudaMajorMinor = "11.8"
+            $installerUrl = "https://developer.download.nvidia.com/compute/cuda/11.8.0/network_installers/cuda_11.8.0_windows_network.exe"
+          } else {
+            $cudaVersion = "12.1.1"
+            $cudaMajorMinor = "12.1"
+            $installerUrl = "https://developer.download.nvidia.com/compute/cuda/12.1.1/network_installers/cuda_12.1.1_windows_network.exe"
           }
           
-          # Windows runners may have CUDA pre-installed, check common locations
-          $cudaPaths = @(
-            "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2",
-            "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1",
-            "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8"
-          )
+          Write-Output "Installing CUDA Toolkit $cudaVersion..."
           
-          $foundCuda = $false
-          foreach ($cudaPath in $cudaPaths) {
-            if (Test-Path $cudaPath) {
-              Write-Output "Found CUDA at: $cudaPath"
-              Write-Output "CUDA_HOME=$cudaPath" >> $env:GITHUB_ENV
-              Write-Output "$cudaPath\bin" >> $env:GITHUB_PATH
-              $foundCuda = $true
-              break
-            }
-          }
+          # Download CUDA installer
+          $installerPath = "$env:TEMP\cuda_installer.exe"
+          Write-Output "Downloading CUDA installer from $installerUrl"
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
           
-          if (-not $foundCuda) {
-            Write-Output "No existing CUDA found, installing minimal CUDA toolkit"
-            # Install basic CUDA toolkit via chocolatey
-            choco install -y cuda --version=12.2.0 --force --no-progress
-            $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2"
-            Write-Output "CUDA_HOME=$cudaPath" >> $env:GITHUB_ENV
-            Write-Output "$cudaPath\bin" >> $env:GITHUB_PATH
-          }
+          # Install CUDA toolkit (silent install with minimal components)
+          Write-Output "Running CUDA installer..."
+          Start-Process -FilePath $installerPath -ArgumentList "-s", "compiler_$cudaMajorMinor", "cudart_$cudaMajorMinor", "libraries_$cudaMajorMinor" -Wait -NoNewWindow
+          
+          # Set environment variables
+          $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaMajorMinor"
+          Write-Output "CUDA_HOME=$cudaPath" >> $env:GITHUB_ENV
+          Write-Output "$cudaPath\bin" >> $env:GITHUB_PATH
+          Write-Output "CUDA_PATH=$cudaPath" >> $env:GITHUB_ENV
+          
+          # Cleanup installer
+          Remove-Item $installerPath -ErrorAction SilentlyContinue
 
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -267,7 +267,11 @@ jobs:
         run: |
           # Set environment variables
           Write-Output "TORCH_VERSION=${{ matrix.torch_version }}" >> $env:GITHUB_ENV
-          Write-Output "CUDA_VERSION=${{ matrix.cuda_version_toolkit }}" >> $env:GITHUB_ENV  
+          if ("${{ matrix.cuda_version }}" -eq "11.8") {
+            Write-Output "CUDA_VERSION=11.8.0" >> $env:GITHUB_ENV
+          } else {
+            Write-Output "CUDA_VERSION=12.1.1" >> $env:GITHUB_ENV
+          }
           Write-Output "PYTHON_VERSION=${{ matrix.python_version }}" >> $env:GITHUB_ENV
           Write-Output "TORCH_CUDA_ARCH_LIST=8.0;8.6;8.9;9.0;12.0" >> $env:GITHUB_ENV
 
@@ -319,7 +323,7 @@ jobs:
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sageattention-native-wheels-${{ matrix.platform }}-pytorch${{ matrix.torch_version }}-cuda${{ matrix.cuda_index || matrix.cuda_version }}
+          name: sageattention-native-wheels-${{ matrix.platform }}-pytorch${{ matrix.torch_version }}-${{ matrix.cuda_index }}
           path: build/*.whl
           retention-days: 7
 
