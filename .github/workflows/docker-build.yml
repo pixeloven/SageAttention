@@ -10,7 +10,7 @@ on:
       torch_version:
         description: "PyTorch version"
         required: false
-        default: "2.7.0"
+        default: "2.8.0"
       cuda_version:
         description: "CUDA version"
         required: false
@@ -73,7 +73,7 @@ jobs:
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sageattention-docker-wheels-${{ matrix.platform }}
+          name: sageattention-docker-wheels-${{ matrix.platform }}-${{ matrix.build-target }}
           path: dist/*.whl
           retention-days: 7
 
@@ -103,10 +103,7 @@ jobs:
           Write-Output "=== BEFORE CLEANUP ==="
           Get-WmiObject -Class Win32_LogicalDisk | Select-Object Size,FreeSpace,DeviceID | Format-Table -AutoSize
           
-          # Remove Visual Studio components (largest space saver)
-          Write-Output "Removing Visual Studio components..."
-          Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          Get-ChildItem -Path "C:\Program Files (x86)\Microsoft Visual Studio" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          # Keep Visual Studio for Docker Windows containers (may be needed for compilation)
           
           # Remove .NET frameworks
           Write-Output "Removing .NET components..."
@@ -191,7 +188,7 @@ jobs:
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sageattention-docker-wheels-${{ matrix.platform }}
+          name: sageattention-docker-wheels-${{ matrix.platform }}-${{ matrix.build-target }}
           path: dist/*.whl
           retention-days: 7
 
@@ -209,6 +206,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: sageattention-docker-wheels-*
+          merge-multiple: true
+          path: wheels/
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -235,7 +234,7 @@ jobs:
       - name: Publish to GitHub Packages
         run: |
           # Find all wheel files
-          find . -name "*.whl" -type f | while read wheel; do
+          find wheels/ -name "*.whl" -type f | while read wheel; do
             echo "Uploading $wheel to GitHub Packages..."
             twine upload --repository github "$wheel"
           done
