@@ -111,13 +111,16 @@ The project uses an optimized multi-stage Docker build system for efficient cach
 - Docker-based testing ensures consistent test environments
 
 ### Wheel Output
-Built wheels are saved to `./dist/` directory (git-ignored) with version-specific naming:
+Built wheels are saved to `./dist/` directory (git-ignored) with PEP 427 compliant naming:
 
-**Naming Convention:**
-- `sageattention-{version}-torch{pytorch}.cu{cuda}-{python}-{abi}-{platform}.whl`
+**Naming Convention (PEP 427 Compliant):**
+- `sageattention-{version}-{build_tag}-{python}-{abi}-{platform}.whl`
+- Build tag format: `torch{pytorch_version}.cu{cuda_version}`
 - Example: `sageattention-2.2.0-torch280.cu129-cp312-cp312-linux_x86_64.whl`
 
 **Benefits:**
-- Multiple PyTorch/CUDA versions can coexist in same directory
-- Clear version identification for deployment and testing
-- No overwrites when building multiple configurations
+- **PEP 427 compliance**: Follows Python wheel naming standards
+- **Proper build tags**: PyTorch/CUDA info in build tag field, not version
+- **Tool compatibility**: Works correctly with pip, PyPI, and other Python tools
+- **Version clarity**: Clean semantic version (2.2.0) separate from build metadata
+- **Coexistence**: Multiple PyTorch/CUDA versions can coexist in same directory

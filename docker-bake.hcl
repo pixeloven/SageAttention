@@ -1,6 +1,7 @@
 # SageAttention Docker Bake Configuration - Optimized Multi-Stage Builds
 # Clear naming convention: {platform}-{pytorch}-{cuda}-{python}
 # Uses optimized multi-stage architecture with shared dependency layers
+# Generates PEP 427 compliant wheels with build tags: sageattention-2.2.0-torch{ver}.cu{ver}-cp312-cp312-{platform}.whl
 
 # Build configuration variables
 variable "PYTHON_VERSION" {
@@ -25,7 +26,7 @@ target "linux-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.linux"
   target = "wheel"
   platforms = ["linux/amd64"]
-  output = ["type=local,dest=./dist,src=/wheels"]
+  output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -40,7 +41,7 @@ target "linux-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.linux"
   target = "wheel"
   platforms = ["linux/amd64"]
-  output = ["type=local,dest=./dist,src=/wheels"]
+  output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -56,7 +57,7 @@ target "linux-pytorch28-cu129-python312" {
 target "windows-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.windows"
   target = "wheel"
-  output = ["type=local,dest=./dist,src=C:/wheels"]
+  output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -70,7 +71,7 @@ target "windows-pytorch27-cu128-python312" {
 target "windows-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.windows"
   target = "wheel"
-  output = ["type=local,dest=./dist,src=C:/wheels"]
+  output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION
