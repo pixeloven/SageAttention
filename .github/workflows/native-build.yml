@@ -66,36 +66,12 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
 
-      - name: Install CUDA Toolkit
-        run: |
-          # Remove any existing broken CUDA installations
-          sudo apt-get remove --purge -y cuda* nvidia* || true
-          sudo apt-get autoremove -y
-          
-          # Add NVIDIA's official repository
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
-          sudo dpkg -i cuda-keyring_1.0-1_all.deb
-          sudo apt-get update
-          
-          # Install CUDA components based on matrix version
-          CUDA_VERSION_MAJOR_MINOR="${{ matrix.cuda_version }}"
-          CUDA_VERSION_DASHED=$(echo $CUDA_VERSION_MAJOR_MINOR | tr '.' '-')
-          
-          echo "Installing CUDA $CUDA_VERSION_MAJOR_MINOR components..."
-          sudo apt-get install -y --no-install-recommends \
-            cuda-compiler-${CUDA_VERSION_DASHED} \
-            cuda-cudart-dev-${CUDA_VERSION_DASHED} \
-            cuda-driver-dev-${CUDA_VERSION_DASHED} \
-            cuda-nvcc-${CUDA_VERSION_DASHED} \
-            libcublas-dev-${CUDA_VERSION_DASHED} \
-            libcusparse-dev-${CUDA_VERSION_DASHED} \
-            libcurand-dev-${CUDA_VERSION_DASHED}
-            
-          export CUDA_HOME=/usr/local/cuda-${CUDA_VERSION_MAJOR_MINOR}
-          echo "CUDA_HOME=/usr/local/cuda-${CUDA_VERSION_MAJOR_MINOR}" >> $GITHUB_ENV
-          echo "/usr/local/cuda-${CUDA_VERSION_MAJOR_MINOR}/bin" >> $GITHUB_PATH
-          echo "LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION_MAJOR_MINOR}/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-          sudo ln -sf /usr/local/cuda-${CUDA_VERSION_MAJOR_MINOR} /usr/local/cuda
+      - name: Install CUDA Toolkit (Linux)
+        uses: Jimver/cuda-toolkit@v0.2.16
+        with:
+          cuda: '${{ matrix.cuda_version_full }}'
+          method: 'network'
+          sub-packages: '["nvcc", "cudart", "cublas", "cusparse", "curand"]'
 
       - name: Verify CUDA installation
         run: |
