@@ -31,11 +31,11 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux builds - PyTorch 2.4 + CUDA 11.8
+          # Linux builds - PyTorch 2.4 + CUDA 12.1 (CUDA 12.0+ required by setup.py)
           - platform: linux
             torch_version: "2.4.1"
-            cuda_index: "cu118"
-            cuda_version: "11.8"
+            cuda_index: "cu121"
+            cuda_version: "12.1"
             python_version: "3.12"
           # Linux builds - PyTorch 2.5 + CUDA 12.1  
           - platform: linux
@@ -75,36 +75,20 @@ jobs:
           sudo dpkg -i cuda-keyring_1.0-1_all.deb
           sudo apt-get update
           
-          # Install minimal CUDA components (avoiding problematic Nsight tools)
-          if [[ "${{ matrix.cuda_index }}" == "cu118" ]]; then
-            sudo apt-get install -y --no-install-recommends \
-              cuda-compiler-11-8 \
-              cuda-cudart-dev-11-8 \
-              cuda-driver-dev-11-8 \
-              cuda-nvcc-11-8 \
-              libcublas-dev-11-8 \
-              libcusparse-dev-11-8 \
-              libcurand-dev-11-8
-            export CUDA_HOME=/usr/local/cuda-11.8
-            echo "CUDA_HOME=/usr/local/cuda-11.8" >> $GITHUB_ENV
-            echo "/usr/local/cuda-11.8/bin" >> $GITHUB_PATH
-            echo "LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-            sudo ln -sf /usr/local/cuda-11.8 /usr/local/cuda
-          else
-            sudo apt-get install -y --no-install-recommends \
-              cuda-compiler-12-1 \
-              cuda-cudart-dev-12-1 \
-              cuda-driver-dev-12-1 \
-              cuda-nvcc-12-1 \
-              libcublas-dev-12-1 \
-              libcusparse-dev-12-1 \
-              libcurand-dev-12-1
-            export CUDA_HOME=/usr/local/cuda-12.1
-            echo "CUDA_HOME=/usr/local/cuda-12.1" >> $GITHUB_ENV
-            echo "/usr/local/cuda-12.1/bin" >> $GITHUB_PATH
-            echo "LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-            sudo ln -sf /usr/local/cuda-12.1 /usr/local/cuda
-          fi
+          # Install CUDA 12.1 components (CUDA 12.0+ required by setup.py)
+          sudo apt-get install -y --no-install-recommends \
+            cuda-compiler-12-1 \
+            cuda-cudart-dev-12-1 \
+            cuda-driver-dev-12-1 \
+            cuda-nvcc-12-1 \
+            libcublas-dev-12-1 \
+            libcusparse-dev-12-1 \
+            libcurand-dev-12-1
+          export CUDA_HOME=/usr/local/cuda-12.1
+          echo "CUDA_HOME=/usr/local/cuda-12.1" >> $GITHUB_ENV
+          echo "/usr/local/cuda-12.1/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          sudo ln -sf /usr/local/cuda-12.1 /usr/local/cuda
 
       - name: Verify CUDA installation
         run: |
@@ -119,11 +103,7 @@ jobs:
         run: |
           # Set environment variables for the build
           echo "TORCH_VERSION=${{ matrix.torch_version }}" >> $GITHUB_ENV
-          if [[ "${{ matrix.cuda_index }}" == "cu118" ]]; then
-            echo "CUDA_VERSION=11.8.0" >> $GITHUB_ENV
-          else
-            echo "CUDA_VERSION=12.1.0" >> $GITHUB_ENV
-          fi
+          echo "CUDA_VERSION=12.1.0" >> $GITHUB_ENV
           echo "PYTHON_VERSION=${{ matrix.python_version }}" >> $GITHUB_ENV
           echo "TORCH_CUDA_ARCH_LIST=8.0;8.6;8.9;9.0;12.0" >> $GITHUB_ENV
 
@@ -131,12 +111,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel packaging
           
-          # Install PyTorch with appropriate CUDA version
-          if [[ "${{ matrix.torch_version }}" == "2.4.1" ]]; then
-            pip install torch==${{ matrix.torch_version }} torchvision --index-url https://download.pytorch.org/whl/cu118
-          else
-            pip install torch==${{ matrix.torch_version }} torchvision --index-url https://download.pytorch.org/whl/cu121
-          fi
+          # Install PyTorch with CUDA 12.1 support
+          pip install torch==${{ matrix.torch_version }} torchvision --index-url https://download.pytorch.org/whl/cu121
           
           # Install build dependencies  
           pip install numpy packaging pybind11
@@ -183,11 +159,11 @@ jobs:
     strategy:
       matrix:
         include:
-          # Windows builds - PyTorch 2.4 + CUDA 11.8
+          # Windows builds - PyTorch 2.4 + CUDA 12.1 (CUDA 12.0+ required by setup.py)
           - platform: windows
             torch_version: "2.4.1"
-            cuda_index: "cu118"
-            cuda_version: "11.8"
+            cuda_index: "cu121"
+            cuda_version: "12.1"
             python_version: "3.12"
           # Windows builds - PyTorch 2.5 + CUDA 12.1
           - platform: windows
@@ -227,16 +203,10 @@ jobs:
       - name: Install CUDA Toolkit (Windows)
         shell: powershell  
         run: |
-          # Determine CUDA version based on matrix  
-          if ("${{ matrix.cuda_version }}" -eq "11.8") {
-            $cudaVersion = "11.8.0"
-            $cudaMajorMinor = "11.8"
-            $installerUrl = "https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_522.06_windows.exe"
-          } else {
-            $cudaVersion = "12.1.1"  
-            $cudaMajorMinor = "12.1"
-            $installerUrl = "https://developer.download.nvidia.com/compute/cuda/12.1.1/local_installers/cuda_12.1.1_531.14_windows.exe"
-          }
+          # Install CUDA 12.1 (CUDA 12.0+ required by setup.py)
+          $cudaVersion = "12.1.1"  
+          $cudaMajorMinor = "12.1"
+          $installerUrl = "https://developer.download.nvidia.com/compute/cuda/12.1.1/local_installers/cuda_12.1.1_531.14_windows.exe"
           
           Write-Output "Installing CUDA Toolkit $cudaVersion..."
           
@@ -283,11 +253,7 @@ jobs:
         run: |
           # Set environment variables
           Write-Output "TORCH_VERSION=${{ matrix.torch_version }}" >> $env:GITHUB_ENV
-          if ("${{ matrix.cuda_version }}" -eq "11.8") {
-            Write-Output "CUDA_VERSION=11.8.0" >> $env:GITHUB_ENV
-          } else {
-            Write-Output "CUDA_VERSION=12.1.1" >> $env:GITHUB_ENV
-          }
+          Write-Output "CUDA_VERSION=12.1.1" >> $env:GITHUB_ENV
           Write-Output "PYTHON_VERSION=${{ matrix.python_version }}" >> $env:GITHUB_ENV
           Write-Output "TORCH_CUDA_ARCH_LIST=8.0;8.6;8.9;9.0;12.0" >> $env:GITHUB_ENV
 
@@ -296,12 +262,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel packaging
           
-          # Install PyTorch with appropriate CUDA version
-          if ("${{ matrix.torch_version }}" -eq "2.4.1") {
-            pip install torch=="${{ matrix.torch_version }}" torchvision --index-url https://download.pytorch.org/whl/cu118
-          } else {
-            pip install torch=="${{ matrix.torch_version }}" torchvision --index-url https://download.pytorch.org/whl/cu121  
-          }
+          # Install PyTorch with CUDA 12.1 support
+          pip install torch=="${{ matrix.torch_version }}" torchvision --index-url https://download.pytorch.org/whl/cu121
           
           # Install build dependencies
           pip install numpy packaging pybind11
