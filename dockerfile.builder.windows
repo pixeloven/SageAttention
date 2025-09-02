@@ -16,8 +16,6 @@ ARG PYTHON_VERSION
 ARG TORCH_VERSION
 
 # Set environment variables
-ENV CUDA_HOME="C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v${CUDA_VERSION}"
-ENV PATH="%CUDA_HOME%\\bin;%PATH%"
 ENV PYTHONUNBUFFERED=1
 ENV TORCH_VERSION=${TORCH_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
@@ -31,11 +29,31 @@ RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     choco install -y python --version=3.12.8; \
     choco install -y visualstudio2019buildtools git
 
-# Add tools to PATH (cached layer)
-ENV PATH=C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
+# Install CUDA Toolkit (cached layer)
+RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
+    if ($env:CUDA_VERSION -eq '12.8.1') { \
+        choco install -y cuda --version=12.8.0 \
+    } else { \
+        choco install -y cuda --version=12.9.0 \
+    }
+
+# Set CUDA environment dynamically based on version
+RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
+    if ($env:CUDA_VERSION -eq '12.8.1') { \
+        [Environment]::SetEnvironmentVariable('CUDA_HOME', 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8', 'Machine') \
+    } else { \
+        [Environment]::SetEnvironmentVariable('CUDA_HOME', 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9', 'Machine') \
+    }
 
 # Create virtual environment (cached layer)
 RUN python -m venv C:\\opt\\venv
+
+# Set final PATH with CUDA and venv 
+RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
+    $cudaPath = if ($env:CUDA_VERSION -eq '12.8.1') { 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin' } else { 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin' }; \
+    $newPath = \"C:\\opt\\venv\\Scripts;$cudaPath;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\\"; \
+    [Environment]::SetEnvironmentVariable('PATH', $newPath, 'Machine')
+
 ENV PATH=C:\\opt\\venv\\Scripts;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
 
 # Upgrade pip and install build tools (cached layer)
