@@ -67,7 +67,7 @@ jobs:
           python-version: ${{ matrix.python_version }}
 
       - name: Install CUDA Toolkit (Linux)
-        uses: Jimver/cuda-toolkit@v0.2.16
+        uses: Jimver/cuda-toolkit@v0.2.27
         with:
           cuda: '${{ matrix.cuda_version_full }}'
           method: 'network'
@@ -192,7 +192,7 @@ jobs:
           python-version: ${{ matrix.python_version }}
 
       - name: Install CUDA Toolkit (Windows)
-        uses: Jimver/cuda-toolkit@v0.2.16
+        uses: Jimver/cuda-toolkit@v0.2.27
         with:
           cuda: '${{ matrix.cuda_version_full }}'
           method: 'network'
