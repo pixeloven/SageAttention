@@ -87,8 +87,11 @@ RUN python update_pyproject.py
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install numpy packaging pybind11
 
-# Build SageAttention wheel
-RUN python setup.py bdist_wheel
+# Build SageAttention wheel with cache mount for compilation artifacts
+RUN --mount=type=cache,target=/tmp/ccache \
+    --mount=type=cache,target=/root/.cache/pip \
+    CCACHE_DIR=/tmp/ccache \
+    python setup.py bdist_wheel
 
 # Stage 3: Wheel extraction - outputs ONLY wheel files with automatic version naming
 FROM scratch AS wheel
