@@ -139,6 +139,9 @@ jobs:
           Write-Output "=== AFTER CLEANUP ==="
           Get-WmiObject -Class Win32_LogicalDisk | Select-Object Size,FreeSpace,DeviceID | Format-Table -AutoSize
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Check Docker configuration
         run: |
           Write-Output "=== Docker Version ==="
@@ -168,22 +171,16 @@ jobs:
           Write-Output "PYTHON_VERSION=3.12" >> $env:GITHUB_ENV
           Write-Output "TORCH_CUDA_ARCH_LIST=8.0;8.6;8.9;9.0;12.0" >> $env:GITHUB_ENV
 
-      - name: Build wheel using docker build
+      - name: Build wheel using docker buildx bake
         run: |
-          # Build the wheel directly using docker build instead of buildx
-          docker build -f dockerfile.builder.windows --target wheel --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-wheel .
-          
-          # Extract wheel from container
-          $containerId = docker create sageattention-wheel
-          docker cp "${containerId}:C:\wheels" ./dist
-          docker rm $containerId
+          # Build the wheel using buildx bake (supports cache mounts)
+          docker buildx bake --file docker-bake.hcl ${{ matrix.build-target }}
 
       # Test wheel using Docker
-      - name: Test wheel using docker build
+      - name: Test wheel using docker buildx bake
         run: |
-          # Test the build
-          docker build -f dockerfile.builder.windows --target test --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-test .
-          docker run --rm sageattention-test
+          # Test the build using buildx bake
+          docker buildx bake --file docker-bake.hcl ${{ matrix.test-target }}
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
