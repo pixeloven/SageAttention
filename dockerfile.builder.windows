@@ -29,25 +29,16 @@ RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     choco install -y python --version=3.12.8; \
     choco install -y visualstudio2019buildtools git
 
-# Install CUDA Toolkit using official URLs (full silent install)
+# Install CUDA Toolkit using Chocolatey (more reliable than direct downloads)
 RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
-        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_551.78_windows.exe' \
+        Write-Host \"Installing CUDA 12.8.1 via Chocolatey...\"; \
+        choco install -y cuda --version=12.8.1.576 --allow-downgrade \
     } else { \
-        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.9.1/local_installers/cuda_12.9.1_576.57_windows.exe' \
+        Write-Host \"Installing CUDA 12.9.1 via Chocolatey...\"; \
+        choco install -y cuda --version=12.9.1.576 --allow-downgrade \
     }; \
-    Write-Host \"Downloading CUDA from: $cudaUrl\"; \
-    try { \
-        Invoke-WebRequest -Uri $cudaUrl -OutFile 'C:\\cuda_installer.exe' -ErrorAction Stop; \
-        Write-Host \"Installing CUDA toolkit silently...\"; \
-        Start-Process -FilePath 'C:\\cuda_installer.exe' -ArgumentList '-s' -Wait -ErrorAction Stop; \
-        Write-Host \"CUDA installation completed successfully\"; \
-    } catch { \
-        Write-Host \"Error during CUDA installation: $_\"; \
-        throw \
-    } finally { \
-        if (Test-Path 'C:\\cuda_installer.exe') { Remove-Item 'C:\\cuda_installer.exe' -Force } \
-    }
+    Write-Host \"CUDA installation completed successfully\"
 
 # Create virtual environment first
 RUN python -m venv C:\\opt\\venv
