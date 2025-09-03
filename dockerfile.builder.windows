@@ -29,13 +29,20 @@ RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     choco install -y python --version=3.12.8; \
     choco install -y visualstudio2019buildtools git
 
-# Install CUDA Toolkit (cached layer)
+# Install CUDA Toolkit using local installer (minimal components for build only)
 RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
-        choco install -y cuda --version=12.8.0 \
+        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_551.78_windows.exe'; \
+        $installDir = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8' \
     } else { \
-        choco install -y cuda --version=12.9.0 \
-    }
+        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.9.1/local_installers/cuda_12.9.1_560.35_windows.exe'; \
+        $installDir = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9' \
+    }; \
+    Write-Host \"Downloading CUDA from: $cudaUrl\"; \
+    Invoke-WebRequest -Uri $cudaUrl -OutFile 'C:\\cuda_installer.exe'; \
+    Write-Host \"Installing CUDA toolkit - minimal components for build...\"; \
+    Start-Process -FilePath 'C:\\cuda_installer.exe' -ArgumentList '-s', 'nvcc_12.8', 'cudart_12.8' -Wait; \
+    Remove-Item 'C:\\cuda_installer.exe' -Force
 
 # Set CUDA environment dynamically based on version
 RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
