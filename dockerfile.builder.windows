@@ -29,38 +29,43 @@ RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     choco install -y python --version=3.12.8; \
     choco install -y visualstudio2019buildtools git
 
-# Install CUDA Toolkit using local installer (minimal components for build only)
+# Install CUDA Toolkit using official URLs (full silent install)
 RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
-        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_551.78_windows.exe'; \
-        $installDir = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8' \
+        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_551.78_windows.exe' \
     } else { \
-        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.9.1/local_installers/cuda_12.9.1_560.35_windows.exe'; \
-        $installDir = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9' \
+        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.9.1/local_installers/cuda_12.9.1_576.57_windows.exe' \
     }; \
     Write-Host \"Downloading CUDA from: $cudaUrl\"; \
-    Invoke-WebRequest -Uri $cudaUrl -OutFile 'C:\\cuda_installer.exe'; \
-    Write-Host \"Installing CUDA toolkit - minimal components for build...\"; \
-    Start-Process -FilePath 'C:\\cuda_installer.exe' -ArgumentList '-s', 'nvcc_12.8', 'cudart_12.8' -Wait; \
-    Remove-Item 'C:\\cuda_installer.exe' -Force
-
-# Set CUDA environment dynamically based on version
-RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
-    if ($env:CUDA_VERSION -eq '12.8.1') { \
-        [Environment]::SetEnvironmentVariable('CUDA_HOME', 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8', 'Machine') \
-    } else { \
-        [Environment]::SetEnvironmentVariable('CUDA_HOME', 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9', 'Machine') \
+    try { \
+        Invoke-WebRequest -Uri $cudaUrl -OutFile 'C:\\cuda_installer.exe' -ErrorAction Stop; \
+        Write-Host \"Installing CUDA toolkit silently...\"; \
+        Start-Process -FilePath 'C:\\cuda_installer.exe' -ArgumentList '-s' -Wait -ErrorAction Stop; \
+        Write-Host \"CUDA installation completed successfully\"; \
+    } catch { \
+        Write-Host \"Error during CUDA installation: $_\"; \
+        throw \
+    } finally { \
+        if (Test-Path 'C:\\cuda_installer.exe') { Remove-Item 'C:\\cuda_installer.exe' -Force } \
     }
 
-# Create virtual environment (cached layer)
+# Create virtual environment first
 RUN python -m venv C:\\opt\\venv
 
-# Set final PATH with CUDA and venv 
+# Set dynamic CUDA paths and final environment
 RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
-    $cudaPath = if ($env:CUDA_VERSION -eq '12.8.1') { 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin' } else { 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin' }; \
-    $newPath = \"C:\\opt\\venv\\Scripts;$cudaPath;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\\"; \
+    if ($env:CUDA_VERSION -eq '12.8.1') { \
+        $cudaHome = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8'; \
+        $cudaBin = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin' \
+    } else { \
+        $cudaHome = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9'; \
+        $cudaBin = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin' \
+    }; \
+    [Environment]::SetEnvironmentVariable('CUDA_HOME', $cudaHome, 'Machine'); \
+    $newPath = \"C:\\opt\\venv\\Scripts;$cudaBin;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\\"; \
     [Environment]::SetEnvironmentVariable('PATH', $newPath, 'Machine')
 
+# Set environment for current session
 ENV PATH=C:\\opt\\venv\\Scripts;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
 
 # Upgrade pip and install build tools (cached layer)
