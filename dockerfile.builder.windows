@@ -73,7 +73,7 @@ RUN powershell -Command \
     }"
 
 # Set environment for current session
-ENV PATH="C:\\opt\\venv\\Scripts;C:\\Program Files\\Python312;C:\\Program Files\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+ENV PATH="C:\\opt\\venv\\Scripts;C:\\Program Files\\Python312;C:\\Program Files\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
 
 # Upgrade pip and install build tools (cached layer)
 RUN python -m pip install --upgrade pip setuptools wheel packaging
@@ -121,7 +121,7 @@ RUN python setup.py bdist_wheel
 
 # Stage 3: Wheel extraction - outputs ONLY wheel files with automatic version naming
 FROM scratch AS wheel
-COPY --from=builder C:\\src\\dist\\*.whl \\dist\\
+COPY --from=builder C:\\src\\dist\\*.whl /dist/
 
 # Stage 4: Test - verifies the built wheel works correctly
 FROM runtime AS test

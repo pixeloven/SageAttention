@@ -25,8 +25,35 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Job 1: Build Linux wheels using Docker
+  # Job 1: Validate Dockerfiles
+  validate-dockerfiles:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run hadolint on Linux Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: dockerfile.builder.linux
+          config: .hadolint.yaml
+          failure-threshold: warning
+
+      - name: Run hadolint on Windows Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: dockerfile.builder.windows
+          config: .hadolint.yaml
+          failure-threshold: warning
+
+      - name: Dockerfile validation summary
+        run: |
+          echo "✅ All Dockerfiles passed validation!"
+          echo "This ensures syntax correctness and follows best practices before builds."
+
+  # Job 2: Build Linux wheels using Docker
   build-linux-wheels:
+    needs: validate-dockerfiles
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -77,8 +104,9 @@ jobs:
           path: dist/*.whl
           retention-days: 7
 
-  # Job 2: Build Windows wheels using Docker
+  # Job 3: Build Windows wheels using Docker
   build-windows-wheels:
+    needs: validate-dockerfiles
     runs-on: windows-2022
     strategy:
       matrix:
@@ -192,7 +220,7 @@ jobs:
           path: dist/*.whl
           retention-days: 7
 
-  # Job 3: Publish wheels
+  # Job 4: Publish wheels
   publish-wheels-docker:
     needs: [build-linux-wheels, build-windows-wheels]
     runs-on: ubuntu-latest
