@@ -20,34 +20,21 @@ ENV PYTHONUNBUFFERED=1
 ENV TORCH_VERSION=${TORCH_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
-# Install Chocolatey and system dependencies (cached layer)
-RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
-    Set-ExecutionPolicy Bypass -Scope Process -Force; \
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
-    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); \
-    $env:PATH = \"C:\\ProgramData\\chocolatey\\bin;$env:PATH\"; \
-    choco install -y python --version=3.12.8; \
-    choco install -y visualstudio2019buildtools git
-
-# Install CUDA Toolkit using corrected official URLs
-RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
-    if ($env:CUDA_VERSION -eq '12.8.1') { \
-        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_551.78_windows.exe' \
+# Install system dependencies using winget (cached layer)
+RUN powershell -Command \
+    "Write-Host 'Installing Python 3.12...'; \
+    winget install --id Python.Python.3.12 --silent --accept-source-agreements --accept-package-agreements; \
+    Write-Host 'Installing Visual Studio Build Tools...'; \
+    winget install --id Microsoft.VisualStudio.2019.BuildTools --silent --accept-source-agreements --accept-package-agreements; \
+    Write-Host 'Installing Git...'; \
+    winget install --id Git.Git --silent --accept-source-agreements --accept-package-agreements; \
+    Write-Host 'Installing NVIDIA CUDA Toolkit...'; \
+    if ($$env:CUDA_VERSION -eq '12.8.1') { \
+        winget install --id NVIDIA.CUDAToolkit --version 12.8.1 --silent --accept-source-agreements --accept-package-agreements; \
     } else { \
-        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.9.1/local_installers/cuda_12.9.1_576.57_windows.exe' \
+        winget install --id NVIDIA.CUDAToolkit --version 12.9.1 --silent --accept-source-agreements --accept-package-agreements; \
     }; \
-    Write-Host \"Downloading CUDA from: $cudaUrl\"; \
-    try { \
-        Invoke-WebRequest -Uri $cudaUrl -OutFile 'C:\\cuda_installer.exe' -ErrorAction Stop; \
-        Write-Host \"Installing CUDA toolkit silently...\"; \
-        Start-Process -FilePath 'C:\\cuda_installer.exe' -ArgumentList '-s' -Wait -ErrorAction Stop; \
-        Write-Host \"CUDA installation completed successfully\"; \
-    } catch { \
-        Write-Host \"Error during CUDA installation: $_\"; \
-        throw \
-    } finally { \
-        if (Test-Path 'C:\\cuda_installer.exe') { Remove-Item 'C:\\cuda_installer.exe' -Force } \
-    }
+    Write-Host 'All dependencies installed successfully'"
 
 # Create virtual environment first
 RUN python -m venv C:\\opt\\venv
@@ -74,7 +61,7 @@ RUN powershell -Command \
                 Get-ChildItem $$cudaHome -Recurse -Name \"nvcc.exe\" | ForEach-Object { Write-Host \"Found nvcc.exe at: $$_\" }; \
             }; \
             [Environment]::SetEnvironmentVariable('CUDA_HOME', $$cudaHome, 'Machine'); \
-            $$newPath = \"C:\\opt\\venv\\Scripts;$$cudaBin;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\\"; \
+            $$newPath = \"C:\\opt\\venv\\Scripts;$$cudaBin;C:\\Program Files\\Python312;C:\\Program Files\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\\"; \
             [Environment]::SetEnvironmentVariable('PATH', $$newPath, 'Machine'); \
         } else { \
             Write-Host \"ERROR: CUDA home directory not found for version $$env:CUDA_VERSION\"; \
@@ -86,7 +73,7 @@ RUN powershell -Command \
     }"
 
 # Set environment for current session
-ENV PATH=C:\\opt\\venv\\Scripts;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
+ENV PATH=C:\\opt\\venv\\Scripts;C:\\Program Files\\Python312;C:\\Program Files\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
 
 # Upgrade pip and install build tools (cached layer)
 RUN python -m pip install --upgrade pip setuptools wheel packaging
