@@ -137,7 +137,7 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install and test the wheel directly from builder
-COPY --from=builder C:\\src\\dist\\*.whl C:\\tmp\\
+COPY --from=builder C:/src/dist/*.whl C:/tmp/
 RUN python -m pip install C:\\tmp\\*.whl \
     && Remove-Item -Path C:\\tmp\\*.whl -Force
 

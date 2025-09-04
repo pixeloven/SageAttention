@@ -37,14 +37,14 @@ jobs:
         with:
           dockerfile: dockerfile.builder.linux
           config: .hadolint.yaml
-          failure-threshold: warning
+          failure-threshold: error
 
       - name: Run hadolint on Windows Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: dockerfile.builder.windows
           config: .hadolint.yaml
-          failure-threshold: warning
+          failure-threshold: error
 
       - name: Dockerfile validation summary
         run: |

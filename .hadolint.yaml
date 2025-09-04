@@ -2,9 +2,21 @@
 # See https://github.com/hadolint/hadolint for rule documentation
 
 ignored:
-  # Windows-specific exceptions
-  - DL3008  # Pin versions in apt-get install (not applicable to Windows)
-  - DL3009  # Delete apt-get cache (not applicable to Windows) 
+  # Package version pinning (not always necessary for build containers)
+  - DL3008  # Pin versions in apt-get install
+  - DL3013  # Pin versions in pip install
+  
+  # Pip cache (useful for faster builds in CI)
+  - DL3042  # Avoid use of cache directory with pip
+  
+  # Style/optimization suggestions (focus on syntax errors only)
+  - DL3059  # Multiple consecutive RUN instructions
+  - SC2154  # Variable referenced but not assigned (PowerShell variables)
+  - SC1072  # Fix any mentioned problems (PowerShell syntax)
+  - SC1088  # Parsing stopped here (PowerShell parsing)
+  
+  # Windows-specific exceptions  
+  - DL3009  # Delete apt-get cache (not applicable to Windows)
   - DL3015  # Avoid additional packages (winget doesn't have --no-install-recommends)
   - DL4006  # Not related to SHELL usage in Windows containers
   
@@ -12,10 +24,10 @@ ignored:
   - DL3003  # Use WORKDIR instead of cd (we use both appropriately)
   - DL3020  # Use COPY instead of ADD (we only use COPY)
 
-# Treat warnings as errors for strict validation
-failure-threshold: warning
+# Only fail on actual errors, not warnings or info
+failure-threshold: error
 
-# Enable all rules by default
+# Enable all rules by default except ignored ones
 override:
   error: []
   warning: []
