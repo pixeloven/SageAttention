@@ -29,52 +29,61 @@ RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     choco install -y python --version=3.12.8; \
     choco install -y visualstudio2019buildtools git
 
-# Install CUDA Toolkit using Chocolatey (more reliable than direct downloads)
+# Install CUDA Toolkit using corrected official URLs
 RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
-        Write-Host \"Installing CUDA 12.8.1 via Chocolatey...\"; \
-        choco install -y cuda --version=12.8.1.576 --allow-downgrade \
+        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_551.78_windows.exe' \
     } else { \
-        Write-Host \"Installing CUDA 12.9.1 via Chocolatey...\"; \
-        choco install -y cuda --version=12.9.1.576 --allow-downgrade \
+        $cudaUrl = 'https://developer.download.nvidia.com/compute/cuda/12.9.1/local_installers/cuda_12.9.1_576.57_windows.exe' \
     }; \
-    Write-Host \"CUDA installation completed successfully\"
+    Write-Host \"Downloading CUDA from: $cudaUrl\"; \
+    try { \
+        Invoke-WebRequest -Uri $cudaUrl -OutFile 'C:\\cuda_installer.exe' -ErrorAction Stop; \
+        Write-Host \"Installing CUDA toolkit silently...\"; \
+        Start-Process -FilePath 'C:\\cuda_installer.exe' -ArgumentList '-s' -Wait -ErrorAction Stop; \
+        Write-Host \"CUDA installation completed successfully\"; \
+    } catch { \
+        Write-Host \"Error during CUDA installation: $_\"; \
+        throw \
+    } finally { \
+        if (Test-Path 'C:\\cuda_installer.exe') { Remove-Item 'C:\\cuda_installer.exe' -Force } \
+    }
 
 # Create virtual environment first
 RUN python -m venv C:\\opt\\venv
 
 # Set dynamic CUDA paths and final environment (verify actual installation paths)
-RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
-    Write-Host \"Checking CUDA installation paths...\"; \
-    $cudaBase = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA'; \
-    if (Test-Path $cudaBase) { \
-        $cudaDirs = Get-ChildItem $cudaBase | Where-Object { $_.PSIsContainer } | Sort-Object Name; \
-        Write-Host \"Found CUDA directories: $($cudaDirs.Name -join ', ')\"; \
-        if ($env:CUDA_VERSION -eq '12.8.1') { \
-            $cudaHome = (Get-ChildItem $cudaBase | Where-Object { $_.Name -like '*12.8*' } | Select-Object -First 1).FullName; \
+RUN powershell -Command \
+    "Write-Host 'Checking CUDA installation paths...'; \
+    $$cudaBase = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA'; \
+    if (Test-Path $$cudaBase) { \
+        $$cudaDirs = Get-ChildItem $$cudaBase | Where-Object { $$_.PSIsContainer } | Sort-Object Name; \
+        Write-Host \"Found CUDA directories: $$($$cudaDirs.Name -join ', ')\"; \
+        if ($$env:CUDA_VERSION -eq '12.8.1') { \
+            $$cudaHome = (Get-ChildItem $$cudaBase | Where-Object { $$_.Name -like '*12.8*' } | Select-Object -First 1).FullName; \
         } else { \
-            $cudaHome = (Get-ChildItem $cudaBase | Where-Object { $_.Name -like '*12.9*' } | Select-Object -First 1).FullName; \
+            $$cudaHome = (Get-ChildItem $$cudaBase | Where-Object { $$_.Name -like '*12.9*' } | Select-Object -First 1).FullName; \
         }; \
-        if ($cudaHome -and (Test-Path $cudaHome)) { \
-            Write-Host \"Using CUDA_HOME: $cudaHome\"; \
-            $cudaBin = \"$cudaHome\\bin\"; \
-            if (Test-Path \"$cudaBin\\nvcc.exe\") { \
-                Write-Host \"Found nvcc.exe at: $cudaBin\\nvcc.exe\"; \
+        if ($$cudaHome -and (Test-Path $$cudaHome)) { \
+            Write-Host \"Using CUDA_HOME: $$cudaHome\"; \
+            $$cudaBin = \"$$cudaHome\\bin\"; \
+            if (Test-Path \"$$cudaBin\\nvcc.exe\") { \
+                Write-Host \"Found nvcc.exe at: $$cudaBin\\nvcc.exe\"; \
             } else { \
-                Write-Host \"WARNING: nvcc.exe not found at: $cudaBin\\nvcc.exe\"; \
-                Get-ChildItem $cudaHome -Recurse -Name \"nvcc.exe\" | ForEach-Object { Write-Host \"Found nvcc.exe at: $_\" }; \
+                Write-Host \"WARNING: nvcc.exe not found at: $$cudaBin\\nvcc.exe\"; \
+                Get-ChildItem $$cudaHome -Recurse -Name \"nvcc.exe\" | ForEach-Object { Write-Host \"Found nvcc.exe at: $$_\" }; \
             }; \
-            [Environment]::SetEnvironmentVariable('CUDA_HOME', $cudaHome, 'Machine'); \
-            $newPath = \"C:\\opt\\venv\\Scripts;$cudaBin;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\\"; \
-            [Environment]::SetEnvironmentVariable('PATH', $newPath, 'Machine'); \
+            [Environment]::SetEnvironmentVariable('CUDA_HOME', $$cudaHome, 'Machine'); \
+            $$newPath = \"C:\\opt\\venv\\Scripts;$$cudaBin;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\\"; \
+            [Environment]::SetEnvironmentVariable('PATH', $$newPath, 'Machine'); \
         } else { \
-            Write-Host \"ERROR: CUDA home directory not found for version $env:CUDA_VERSION\"; \
+            Write-Host \"ERROR: CUDA home directory not found for version $$env:CUDA_VERSION\"; \
             throw \"CUDA installation verification failed\"; \
         } \
     } else { \
-        Write-Host \"ERROR: CUDA base directory not found at $cudaBase\"; \
+        Write-Host \"ERROR: CUDA base directory not found at $$cudaBase\"; \
         throw \"CUDA installation not found\"; \
-    }
+    }"
 
 # Set environment for current session
 ENV PATH=C:\\opt\\venv\\Scripts;C:\\ProgramData\\chocolatey\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\
