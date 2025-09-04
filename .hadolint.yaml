@@ -1,6 +1,7 @@
 # Hadolint configuration for SageAttention Dockerfiles
 # See https://github.com/hadolint/hadolint for rule documentation
 
+# @todo decide when and if to fix these warnings ignore for now
 ignored:
   # Package version pinning (not always necessary for build containers)
   - DL3008  # Pin versions in apt-get install
