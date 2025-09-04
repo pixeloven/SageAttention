@@ -29,7 +29,7 @@ RUN powershell -Command \
     Write-Host 'Installing Git...'; \
     winget install --id Git.Git --silent --accept-source-agreements --accept-package-agreements; \
     Write-Host 'Installing NVIDIA CUDA Toolkit...'; \
-    if ($$env:CUDA_VERSION -eq '12.8.1') { \
+    if (`$env:CUDA_VERSION -eq '12.8.1') { \
         winget install --id NVIDIA.CUDAToolkit --version 12.8.1 --silent --accept-source-agreements --accept-package-agreements; \
     } else { \
         winget install --id NVIDIA.CUDAToolkit --version 12.9.1 --silent --accept-source-agreements --accept-package-agreements; \
