@@ -77,8 +77,9 @@ RUN powershell -Command \
     Write-Host \"Setting PATH to: $newPath\"; \
     [Environment]::SetEnvironmentVariable('PATH', $newPath, 'Machine')"
 
-# Set environment for current session
-ENV PATH="C:\\opt\\venv\\Scripts;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
+# Set environment for current session - include CUDA paths
+ENV PATH="C:\\opt\\venv\\Scripts;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
+ENV CUDA_HOME="C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9"
 
 # Upgrade pip and install build tools (cached layer)
 RUN python -m pip install --upgrade pip setuptools wheel packaging
@@ -102,14 +103,26 @@ ARG TORCH_CUDA_ARCH_LIST
 # Set build environment variables
 ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
 ENV PYTHON_VERSION=${PYTHON_VERSION}
+ENV CUDA_HOME="C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9"
+ENV PATH="C:\\opt\\venv\\Scripts;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
 
-# Verify build configuration
+# Verify build configuration and CUDA accessibility
 RUN powershell -Command \
     "Write-Host 'Build Configuration:'; \
     Write-Host '  TORCH_VERSION: $env:TORCH_VERSION'; \
     Write-Host '  PYTHON_VERSION: $env:PYTHON_VERSION'; \
     Write-Host '  CUDA_VERSION: $env:CUDA_VERSION'; \
-    Write-Host '  TORCH_CUDA_ARCH_LIST: $env:TORCH_CUDA_ARCH_LIST'"
+    Write-Host '  TORCH_CUDA_ARCH_LIST: $env:TORCH_CUDA_ARCH_LIST'; \
+    Write-Host '  CUDA_HOME: $env:CUDA_HOME'; \
+    Write-Host 'Checking CUDA compiler accessibility...'; \
+    if (Test-Path '$env:CUDA_HOME\\bin\\nvcc.exe') { \
+        Write-Host 'nvcc found at: $env:CUDA_HOME\\bin\\nvcc.exe'; \
+        & '$env:CUDA_HOME\\bin\\nvcc.exe' --version; \
+    } else { \
+        Write-Host 'WARNING: nvcc not found at expected location'; \
+        Write-Host 'Checking PATH for nvcc...'; \
+        try { & nvcc --version } catch { Write-Host 'nvcc not accessible via PATH' }; \
+    }"
 
 # Copy source code for compilation
 WORKDIR C:\\src
