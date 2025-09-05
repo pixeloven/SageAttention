@@ -48,38 +48,14 @@ RUN powershell -Command \
 # Create virtual environment first
 RUN python -m venv C:\\opt\\venv
 
-# Set dynamic CUDA paths and final environment (verify actual installation paths)
-RUN powershell -Command \
-    "Write-Host 'Checking CUDA installation paths...'; \
-    `$cudaBase = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA'; \
-    if (Test-Path `$cudaBase) { \
-        `$cudaDirs = Get-ChildItem `$cudaBase | Where-Object { `$_.PSIsContainer } | Sort-Object Name; \
-        Write-Host \"Found CUDA directories: `$(`$cudaDirs.Name -join ', ')\"; \
-        if (`$env:CUDA_VERSION -eq '12.8.1') { \
-            `$cudaHome = (Get-ChildItem `$cudaBase | Where-Object { `$_.Name -like '*12.8*' } | Select-Object -First 1).FullName; \
-        } else { \
-            `$cudaHome = (Get-ChildItem `$cudaBase | Where-Object { `$_.Name -like '*12.9*' } | Select-Object -First 1).FullName; \
-        }; \
-        if (`$cudaHome -and (Test-Path `$cudaHome)) { \
-            Write-Host \"Using CUDA_HOME: `$cudaHome\"; \
-            `$cudaBin = \"`$cudaHome\\bin\"; \
-            if (Test-Path \"`$cudaBin\\nvcc.exe\") { \
-                Write-Host \"Found nvcc.exe at: `$cudaBin\\nvcc.exe\"; \
-            } else { \
-                Write-Host \"WARNING: nvcc.exe not found at: `$cudaBin\\nvcc.exe\"; \
-                Get-ChildItem `$cudaHome -Recurse -Name \"nvcc.exe\" | ForEach-Object { Write-Host \"Found nvcc.exe at: `$_\" }; \
-            }; \
-            [Environment]::SetEnvironmentVariable('CUDA_HOME', `$cudaHome, 'Machine'); \
-            `$newPath = \"C:\\opt\\venv\\Scripts;`$cudaBin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\"; \
-            [Environment]::SetEnvironmentVariable('PATH', `$newPath, 'Machine'); \
-        } else { \
-            Write-Host \"ERROR: CUDA home directory not found for version `$env:CUDA_VERSION\"; \
-            throw \"CUDA installation verification failed\"; \
-        } \
-    } else { \
-        Write-Host \"ERROR: CUDA base directory not found at `$cudaBase\"; \
-        throw \"CUDA installation not found\"; \
-    }"
+# Check CUDA installation
+RUN powershell -Command "Write-Host 'Checking CUDA installation...'; Get-ChildItem 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA' | Select-Object Name"
+
+# Set CUDA environment variables based on version
+RUN powershell -Command "if ($env:CUDA_VERSION -eq '12.8.1') { [Environment]::SetEnvironmentVariable('CUDA_HOME', 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8', 'Machine') } else { [Environment]::SetEnvironmentVariable('CUDA_HOME', 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9', 'Machine') }"
+
+# Update PATH to include CUDA, Python, and other tools
+RUN powershell -Command "if ($env:CUDA_VERSION -eq '12.8.1') { [Environment]::SetEnvironmentVariable('PATH', 'C:\\opt\\venv\\Scripts;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0', 'Machine') } else { [Environment]::SetEnvironmentVariable('PATH', 'C:\\opt\\venv\\Scripts;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0', 'Machine') }"
 
 # Set environment for current session
 ENV PATH="C:\\opt\\venv\\Scripts;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
