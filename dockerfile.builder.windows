@@ -36,7 +36,7 @@ RUN powershell -Command \
     Write-Host 'Installing Git...'; \
     choco install git -y; \
     Write-Host 'Installing NVIDIA CUDA Toolkit...'; \
-    if (`$env:CUDA_VERSION -eq '12.8.1') { \
+    if ($env:CUDA_VERSION -eq '12.8.1') { \
         choco uninstall cuda -y --ignore-dependencies; \
         choco install cuda --version=12.8.1 -y; \
     } else { \
@@ -49,13 +49,33 @@ RUN powershell -Command \
 RUN python -m venv C:\\opt\\venv
 
 # Check CUDA installation
-RUN powershell -Command "Write-Host 'Checking CUDA installation...'; Get-ChildItem 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA' | Select-Object Name"
+RUN powershell -Command "Write-Host 'Checking CUDA installation...'; if (Test-Path 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA') { Get-ChildItem 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA' | Select-Object Name } else { Write-Host 'CUDA directory not found at expected location'; Get-ChildItem 'C:\\Program Files\\NVIDIA*' -ErrorAction SilentlyContinue | Select-Object Name; Write-Host 'Checking chocolatey CUDA installation...'; Get-ChildItem 'C:\\ProgramData\\chocolatey\\lib\\cuda*' -ErrorAction SilentlyContinue | Select-Object Name }"
 
-# Set CUDA environment variables based on version
-RUN powershell -Command "if ($env:CUDA_VERSION -eq '12.8.1') { [Environment]::SetEnvironmentVariable('CUDA_HOME', 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8', 'Machine') } else { [Environment]::SetEnvironmentVariable('CUDA_HOME', 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9', 'Machine') }"
+# Set CUDA environment variables based on version and actual installation location
+RUN powershell -Command \
+    "$cudaPath = if (Test-Path 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA') { \
+        if ($env:CUDA_VERSION -eq '12.8.1') { 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8' } \
+        else { 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9' } \
+    } elseif (Test-Path 'C:\\Program Files\\NVIDIA Corporation\\NVSMI') { \
+        'C:\\Program Files\\NVIDIA Corporation\\NVSMI' \
+    } else { \
+        Write-Host 'Warning: CUDA installation not found in expected locations'; \
+        'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9' \
+    }; \
+    Write-Host \"Setting CUDA_HOME to: $cudaPath\"; \
+    [Environment]::SetEnvironmentVariable('CUDA_HOME', $cudaPath, 'Machine')"
 
 # Update PATH to include CUDA, Python, and other tools
-RUN powershell -Command "if ($env:CUDA_VERSION -eq '12.8.1') { [Environment]::SetEnvironmentVariable('PATH', 'C:\\opt\\venv\\Scripts;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0', 'Machine') } else { [Environment]::SetEnvironmentVariable('PATH', 'C:\\opt\\venv\\Scripts;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0', 'Machine') }"
+RUN powershell -Command \
+    "$cudaBin = if (Test-Path 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA') { \
+        if ($env:CUDA_VERSION -eq '12.8.1') { 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin' } \
+        else { 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin' } \
+    } else { \
+        'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin' \
+    }; \
+    $newPath = \"C:\\opt\\venv\\Scripts;$cudaBin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\"; \
+    Write-Host \"Setting PATH to: $newPath\"; \
+    [Environment]::SetEnvironmentVariable('PATH', $newPath, 'Machine')"
 
 # Set environment for current session
 ENV PATH="C:\\opt\\venv\\Scripts;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
