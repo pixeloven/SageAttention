@@ -78,13 +78,10 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.27
         with:
           cuda: '${{ matrix.cuda_version_full }}'
-          method: 'network'
-          sub-packages: '["nvcc", "cudart", "cublas", "cusparse", "curand"]'
-          non-cuda-sub-packages: '[]'
-          linux-local-args: '["--toolkit", "--samples"]'
-          use-github-cache: false
-          use-local-cache: false
-          log-file-suffix: 'log.txt'
+          method: 'local'
+          sub-packages: '["nvcc", "cudart", "cublas", "cusparse", "curand", "visual_studio_integration"]'
+          use-github-cache: true
+          use-local-cache: true
 
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1

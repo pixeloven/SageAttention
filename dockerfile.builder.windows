@@ -136,8 +136,18 @@ RUN C:\\opt\\venv\\Scripts\\python.exe update_pyproject.py
 # Install build dependencies
 RUN C:\\opt\\venv\\Scripts\\python.exe -m pip install numpy packaging pybind11
 
-# Build SageAttention wheel
-RUN C:\\opt\\venv\\Scripts\\python.exe setup.py bdist_wheel
+# Initialize Visual Studio Build Tools environment and build SageAttention wheel
+RUN powershell -Command \
+    "Write-Host 'Initializing Visual Studio Build Tools environment...'; \
+    $vsPath = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools'; \
+    if (Test-Path \"$vsPath\\VC\\Auxiliary\\Build\\vcvars64.bat\") { \
+        Write-Host 'Found vcvars64.bat, initializing environment...'; \
+        cmd /c \"\"\"$vsPath\\VC\\Auxiliary\\Build\\vcvars64.bat\"\" && C:\\opt\\venv\\Scripts\\python.exe setup.py bdist_wheel\"; \
+    } else { \
+        Write-Host 'vcvars64.bat not found, searching for VS installation...'; \
+        Get-ChildItem 'C:\\Program Files*\\Microsoft Visual Studio' -Recurse -Name 'vcvars*.bat' -ErrorAction SilentlyContinue | ForEach-Object { Write-Host \"Found: $_\" }; \
+        throw 'Visual Studio Build Tools not properly installed'; \
+    }"
 
 # Stage 3: Wheel extraction - outputs ONLY wheel files with automatic version naming
 FROM scratch AS wheel
