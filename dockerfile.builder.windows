@@ -45,8 +45,21 @@ RUN powershell -Command \
     }; \
     Write-Host 'All dependencies installed successfully'"
 
-# Create virtual environment first
-RUN python -m venv C:\\opt\\venv
+# Refresh environment and verify Python installation
+RUN powershell -Command \
+    "Write-Host 'Refreshing environment after installations...'; \
+    refreshenv; \
+    Write-Host 'Checking Python installation...'; \
+    if (Test-Path 'C:\\Python312\\python.exe') { \
+        Write-Host 'Python found at C:\\Python312\\python.exe'; \
+        & 'C:\\Python312\\python.exe' --version; \
+    } else { \
+        Write-Host 'Python not found at expected location, searching...'; \
+        Get-ChildItem 'C:\\Python*' -ErrorAction SilentlyContinue | Select-Object Name, FullName; \
+    }"
+
+# Create virtual environment using full Python path
+RUN C:\\Python312\\python.exe -m venv C:\\opt\\venv
 
 # Comprehensive CUDA installation check
 RUN powershell -Command \
@@ -118,20 +131,19 @@ RUN powershell -Command \
     Write-Host \"Setting PATH to: $newPath\"; \
     [Environment]::SetEnvironmentVariable('PATH', $newPath, 'Machine')"
 
-# Set environment for current session - include CUDA paths
-ENV PATH="C:\\opt\\venv\\Scripts;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
-ENV CUDA_HOME="C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9"
+# Set basic environment for current session - Python paths first
+ENV PATH="C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
 
 # Upgrade pip and install build tools (cached layer)
-RUN python -m pip install --upgrade pip setuptools wheel packaging
+RUN C:\\opt\\venv\\Scripts\\python.exe -m pip install --upgrade pip setuptools wheel packaging
 
 # Install PyTorch (cached layer, only rebuilds if versions change)
-RUN C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -Command \
-    if ($env:CUDA_VERSION -eq '12.8.1') { \
-        python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
+RUN powershell -Command \
+    "if ($env:CUDA_VERSION -eq '12.8.1') { \
+        & 'C:\\opt\\venv\\Scripts\\python.exe' -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu128 \
     } else { \
-        python -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu129 \
-    }
+        & 'C:\\opt\\venv\\Scripts\\python.exe' -m pip install torch==$env:TORCH_VERSION torchvision --index-url https://download.pytorch.org/whl/cu129 \
+    }"
 
 # Stage 2: Builder - compiles SageAttention wheel (wheel stays embedded)
 FROM runtime AS builder
