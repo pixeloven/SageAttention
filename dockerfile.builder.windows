@@ -136,13 +136,20 @@ RUN C:\\opt\\venv\\Scripts\\python.exe update_pyproject.py
 # Install build dependencies
 RUN C:\\opt\\venv\\Scripts\\python.exe -m pip install numpy packaging pybind11
 
-# Initialize Visual Studio Build Tools environment and build SageAttention wheel
+# Create batch file to initialize VS environment and build
 RUN powershell -Command \
-    "Write-Host 'Initializing Visual Studio Build Tools environment...'; \
+    "Write-Host 'Creating build script...'; \
     $vsPath = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools'; \
     if (Test-Path \"$vsPath\\VC\\Auxiliary\\Build\\vcvars64.bat\") { \
-        Write-Host 'Found vcvars64.bat, initializing environment...'; \
-        cmd /c \"\"\"$vsPath\\VC\\Auxiliary\\Build\\vcvars64.bat\"\" && C:\\opt\\venv\\Scripts\\python.exe setup.py bdist_wheel\"; \
+        Write-Host 'Found vcvars64.bat, creating build script...'; \
+        $buildScript = @'\
+@echo off\
+call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat\"\
+C:\\opt\\venv\\Scripts\\python.exe setup.py bdist_wheel\
+'@; \
+        Set-Content -Path 'C:\\src\\build.bat' -Value $buildScript; \
+        Write-Host 'Running build script...'; \
+        & 'C:\\src\\build.bat'; \
     } else { \
         Write-Host 'vcvars64.bat not found, searching for VS installation...'; \
         Get-ChildItem 'C:\\Program Files*\\Microsoft Visual Studio' -Recurse -Name 'vcvars*.bat' -ErrorAction SilentlyContinue | ForEach-Object { Write-Host \"Found: $_\" }; \
