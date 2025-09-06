@@ -57,6 +57,7 @@ target "linux-pytorch28-cu129-python312" {
 target "windows-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.windows"
   target = "wheel"
+  platforms = ["windows/amd64"]
   output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.8.1"
@@ -71,6 +72,7 @@ target "windows-pytorch27-cu128-python312" {
 target "windows-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.windows"
   target = "wheel"
+  platforms = ["windows/amd64"]
   output = ["type=local,dest=./dist"]
   args = {
     CUDA_VERSION = "12.9.1"
@@ -115,6 +117,7 @@ target "test-linux-pytorch28-cu129-python312" {
 target "test-windows-pytorch27-cu128-python312" {
   dockerfile = "dockerfile.builder.windows"
   target = "test"
+  platforms = ["windows/amd64"]
   args = {
     CUDA_VERSION = "12.8.1"
     PYTHON_VERSION = PYTHON_VERSION
@@ -128,6 +131,7 @@ target "test-windows-pytorch27-cu128-python312" {
 target "test-windows-pytorch28-cu129-python312" {
   dockerfile = "dockerfile.builder.windows"
   target = "test"
+  platforms = ["windows/amd64"]
   args = {
     CUDA_VERSION = "12.9.1"
     PYTHON_VERSION = PYTHON_VERSION

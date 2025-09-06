@@ -38,10 +38,10 @@ RUN powershell -Command \
     Write-Host 'Installing NVIDIA CUDA Toolkit...'; \
     if ($env:CUDA_VERSION -eq '12.8.1') { \
         choco uninstall cuda -y --ignore-dependencies; \
-        choco install cuda --version=12.8.1 -y; \
+        choco install cuda --version=12.8.1.572 -y; \
     } else { \
         choco uninstall cuda -y --ignore-dependencies; \
-        choco install cuda --version=12.9.1 -y; \
+        choco install cuda --version=12.9.1.576 -y; \
     }; \
     Write-Host 'All dependencies installed successfully'"
 

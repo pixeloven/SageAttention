@@ -41,9 +41,9 @@ docker buildx bake --file docker-bake.hcl test-linux-pytorch28-cu129-python312
 docker buildx bake --file docker-bake.hcl test-all
 ```
 
-### Local Development Setup
+### Native Windows Build
 ```bash
-# Direct Python build (requires CUDA toolkit)
+# Windows-only native build (requires CUDA toolkit on Windows)
 pip install -e .
 
 # Run tests
