@@ -106,7 +106,7 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV CUDA_HOME="C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9"
 ENV PATH="C:\\opt\\venv\\Scripts;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9\\bin;C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin;C:\\Python312;C:\\Python312\\Scripts;C:\\Program Files\\Git\\bin;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
 
-# Verify build configuration and CUDA accessibility
+# Create nvcc alias and verify CUDA accessibility
 RUN powershell -Command \
     "Write-Host 'Build Configuration:'; \
     Write-Host '  TORCH_VERSION: $env:TORCH_VERSION'; \
@@ -116,10 +116,18 @@ RUN powershell -Command \
     Write-Host '  CUDA_HOME: $env:CUDA_HOME'; \
     Write-Host 'Checking CUDA compiler accessibility...'; \
     if (Test-Path '$env:CUDA_HOME\\bin\\nvcc.exe') { \
-        Write-Host 'nvcc found at: $env:CUDA_HOME\\bin\\nvcc.exe'; \
+        Write-Host 'nvcc.exe found at: $env:CUDA_HOME\\bin\\nvcc.exe'; \
         & '$env:CUDA_HOME\\bin\\nvcc.exe' --version; \
+        Write-Host 'Creating nvcc hard link for compatibility...'; \
+        try { \
+            New-Item -ItemType HardLink -Path '$env:CUDA_HOME\\bin\\nvcc' -Target '$env:CUDA_HOME\\bin\\nvcc.exe' -Force; \
+            Write-Host 'Successfully created nvcc hard link'; \
+        } catch { \
+            Write-Host 'Hard link creation failed, trying copy...'; \
+            Copy-Item '$env:CUDA_HOME\\bin\\nvcc.exe' '$env:CUDA_HOME\\bin\\nvcc' -Force; \
+        }; \
     } else { \
-        Write-Host 'WARNING: nvcc not found at expected location'; \
+        Write-Host 'WARNING: nvcc.exe not found at expected location'; \
         Write-Host 'Checking PATH for nvcc...'; \
         try { & nvcc --version } catch { Write-Host 'nvcc not accessible via PATH' }; \
     }"
