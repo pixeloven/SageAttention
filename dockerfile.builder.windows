@@ -131,13 +131,13 @@ WORKDIR C:\\src
 COPY . .
 
 # Update pyproject.toml with correct PyTorch version
-RUN python update_pyproject.py
+RUN C:\\opt\\venv\\Scripts\\python.exe update_pyproject.py
 
 # Install build dependencies
-RUN python -m pip install numpy packaging pybind11
+RUN C:\\opt\\venv\\Scripts\\python.exe -m pip install numpy packaging pybind11
 
 # Build SageAttention wheel
-RUN python setup.py bdist_wheel
+RUN C:\\opt\\venv\\Scripts\\python.exe setup.py bdist_wheel
 
 # Stage 3: Wheel extraction - outputs ONLY wheel files with automatic version naming
 FROM scratch AS wheel
@@ -158,8 +158,8 @@ ENV CUDA_VERSION=${CUDA_VERSION}
 
 # Install and test the wheel directly from builder
 COPY --from=builder C:/src/dist/*.whl C:/tmp/
-RUN python -m pip install C:\\tmp\\*.whl \
+RUN C:\\opt\\venv\\Scripts\\python.exe -m pip install C:\\tmp\\*.whl \
     && Remove-Item -Path C:\\tmp\\*.whl -Force
 
 # Test SageAttention import and basic functionality
-RUN python -c "import sageattention; print('SageAttention imported successfully')"
+RUN C:\\opt\\venv\\Scripts\\python.exe -c "import sageattention; print('SageAttention imported successfully')"
