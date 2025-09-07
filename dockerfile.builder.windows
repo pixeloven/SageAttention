@@ -27,36 +27,17 @@ RUN powershell -Command \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); \
     Write-Host 'Chocolatey installed successfully'"
 
+# Copy dependency installation script
+COPY scripts/install-dependencies-windows.ps1 C:/install-dependencies.ps1
+
 # Install system dependencies using chocolatey (cached layer)
-RUN powershell -Command \
-    "Write-Host 'Installing Python 3.12...'; \
-    choco install python312 -y; \
-    Write-Host 'Installing Visual Studio Build Tools...'; \
-    choco install visualstudio2019buildtools --package-parameters '--add Microsoft.VisualStudio.Workload.VCTools' -y; \
-    Write-Host 'Installing Git...'; \
-    choco install git -y; \
-    Write-Host 'Installing NVIDIA CUDA Toolkit...'; \
-    if ($env:CUDA_VERSION -eq '12.8.1') { \
-        choco uninstall cuda -y --ignore-dependencies; \
-        choco install cuda --version=12.8.1.572 -y; \
-    } else { \
-        choco uninstall cuda -y --ignore-dependencies; \
-        choco install cuda --version=12.9.1.576 -y; \
-    }; \
-    Write-Host 'All dependencies installed successfully'"
+RUN powershell -ExecutionPolicy Bypass -File C:/install-dependencies.ps1
+
+# Copy Python verification script
+COPY scripts/verify-python-windows.ps1 C:/verify-python.ps1
 
 # Refresh environment and verify Python installation
-RUN powershell -Command \
-    "Write-Host 'Refreshing environment after installations...'; \
-    refreshenv; \
-    Write-Host 'Checking Python installation...'; \
-    if (Test-Path 'C:\\Python312\\python.exe') { \
-        Write-Host 'Python found at C:\\Python312\\python.exe'; \
-        & 'C:\\Python312\\python.exe' --version; \
-    } else { \
-        Write-Host 'Python not found at expected location, searching...'; \
-        Get-ChildItem 'C:\\Python*' -ErrorAction SilentlyContinue | Select-Object Name, FullName; \
-    }"
+RUN powershell -ExecutionPolicy Bypass -File C:/verify-python.ps1
 
 # Create virtual environment using full Python path
 RUN C:\\Python312\\python.exe -m venv C:\\opt\\venv
@@ -95,36 +76,11 @@ ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 
+# Copy build environment setup script
+COPY scripts/setup-build-environment-windows.ps1 C:/setup-build-env.ps1
+
 # Get CUDA_HOME from machine environment and create nvcc alias
-RUN powershell -Command \
-    "$cudaHome = [Environment]::GetEnvironmentVariable('CUDA_HOME', 'Machine'); \
-    Write-Host 'Build Configuration:'; \
-    Write-Host '  TORCH_VERSION: $env:TORCH_VERSION'; \
-    Write-Host '  PYTHON_VERSION: $env:PYTHON_VERSION'; \
-    Write-Host '  CUDA_VERSION: $env:CUDA_VERSION'; \
-    Write-Host '  TORCH_CUDA_ARCH_LIST: $env:TORCH_CUDA_ARCH_LIST'; \
-    Write-Host \"  CUDA_HOME: $cudaHome\"; \
-    Write-Host 'Checking CUDA compiler accessibility...'; \
-    if ($cudaHome -and (Test-Path \"$cudaHome\\bin\\nvcc.exe\")) { \
-        Write-Host \"nvcc.exe found at: $cudaHome\\bin\\nvcc.exe\"; \
-        & \"$cudaHome\\bin\\nvcc.exe\" --version; \
-        Write-Host 'Creating nvcc hard link for compatibility...'; \
-        try { \
-            New-Item -ItemType HardLink -Path \"$cudaHome\\bin\\nvcc\" -Target \"$cudaHome\\bin\\nvcc.exe\" -Force; \
-            Write-Host 'Successfully created nvcc hard link'; \
-            if (Test-Path \"$cudaHome\\bin\\nvcc\") { \
-                Write-Host 'Verifying nvcc alias works...'; \
-                & \"$cudaHome\\bin\\nvcc\" --version; \
-            } \
-        } catch { \
-            Write-Host 'Hard link creation failed, trying copy...'; \
-            Copy-Item \"$cudaHome\\bin\\nvcc.exe\" \"$cudaHome\\bin\\nvcc\" -Force; \
-        }; \
-        [Environment]::SetEnvironmentVariable('CUDA_HOME', $cudaHome, 'Process'); \
-    } else { \
-        Write-Host 'ERROR: nvcc.exe not found at expected location'; \
-        throw 'CUDA installation verification failed'; \
-    }"
+RUN powershell -ExecutionPolicy Bypass -File C:/setup-build-env.ps1
 
 # Copy source code for compilation
 WORKDIR C:\\src
@@ -136,38 +92,11 @@ RUN C:\\opt\\venv\\Scripts\\python.exe update_pyproject.py
 # Install build dependencies
 RUN C:\\opt\\venv\\Scripts\\python.exe -m pip install numpy packaging pybind11
 
+# Copy Visual Studio detection script
+COPY scripts/detect-visual-studio-windows.ps1 C:/detect-visual-studio.ps1
+
 # Detect and create build script
-RUN powershell -Command \
-    "Write-Host 'Detecting Visual Studio Build Tools...'; \
-    $vcvarsPath = $null; \
-    $possiblePaths = @( \
-        'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat', \
-        'C:\\Program Files\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat', \
-        'C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\Common7\\Tools\\VsDevCmd.bat' \
-    ); \
-    foreach ($path in $possiblePaths) { \
-        if (Test-Path $path) { \
-            $vcvarsPath = $path; \
-            Write-Host \"Found VS tools at: $path\"; \
-            break; \
-        } \
-    }; \
-    if (-not $vcvarsPath) { \
-        Write-Host 'Standard paths not found, searching...'; \
-        $found = Get-ChildItem 'C:\\Program Files*\\Microsoft Visual Studio' -Recurse -Name '*vcvars*.bat' -ErrorAction SilentlyContinue | Select-Object -First 1; \
-        if ($found) { \
-            $vcvarsPath = $found.FullName; \
-            Write-Host \"Found alternative VS tools at: $vcvarsPath\"; \
-        } else { \
-            throw 'No Visual Studio Build Tools found'; \
-        } \
-    }; \
-    $buildScript = '@echo off' + \"`r`n\" + \
-                   \"call `\"$vcvarsPath`\"\" + \"`r`n\" + \
-                   'C:\\opt\\venv\\Scripts\\python.exe setup.py bdist_wheel'; \
-    Set-Content -Path 'C:\\src\\build.bat' -Value $buildScript -Encoding ASCII; \
-    Write-Host 'Build script created with VS path:'; \
-    Write-Host $vcvarsPath"
+RUN powershell -ExecutionPolicy Bypass -File C:/detect-visual-studio.ps1
 
 # Run the build with VS environment
 RUN powershell -Command "& 'C:\\src\\build.bat'"
