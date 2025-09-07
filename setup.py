@@ -25,9 +25,26 @@ import torch
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension, CUDA_HOME
 from wheel.bdist_wheel import bdist_wheel
 
-# Compiler flags.
-if os.name == "nt":
-    # TODO: Detect MSVC rather than OS
+# Compiler flags - detect MSVC compiler rather than OS
+def is_msvc_compiler():
+    """Detect if we're using MSVC compiler."""
+    try:
+        # Try to import distutils compiler to detect MSVC
+        from distutils.msvccompiler import MSVCCompiler
+        from distutils.util import get_platform
+        from setuptools._distutils.msvccompiler import MSVCCompiler as SetuptoolsMSVCCompiler
+        
+        # Check if we're on Windows and likely using MSVC
+        if os.name == "nt":
+            # Additional check: look for cl.exe in PATH or VS environment
+            import shutil
+            return shutil.which("cl.exe") is not None or os.environ.get("VCINSTALLDIR") is not None
+        return False
+    except ImportError:
+        # Fallback to OS detection if distutils unavailable
+        return os.name == "nt"
+
+if is_msvc_compiler():
     CXX_FLAGS = ["/O2", "/openmp", "/std:c++17", "-DENABLE_BF16"]
 else:
     CXX_FLAGS = ["-g", "-O3", "-fopenmp", "-lgomp", "-std=c++17", "-DENABLE_BF16"]
@@ -308,16 +325,7 @@ class bdist_wheel_with_build_tag(bdist_wheel):
 
 
 setup(
-    name='sageattention',
-    version='2.2.0',
-    author='SageAttention team',
-    license='Apache 2.0 License',
-    description='Accurate and efficient plug-and-play low-bit attention.',
-    long_description=open('README.md', encoding='utf-8').read(),
-    long_description_content_type='text/markdown',
-    url='https://github.com/thu-ml/SageAttention',
     packages=find_packages(),
-    python_requires='>=3.9',
     ext_modules=ext_modules,
     cmdclass={
         "build_ext": BuildExtensionSeparateDir,

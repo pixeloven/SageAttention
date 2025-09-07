@@ -51,8 +51,8 @@ jobs:
           echo "✅ All Dockerfiles passed validation!"
           echo "This ensures syntax correctness and follows best practices before builds."
 
-  # Job 2: Build Linux wheels using Docker
-  build-linux-wheels:
+  # Job 2: Build wheels using Docker Bake - Cross-platform
+  build-wheels:
     needs: validate-dockerfiles
     runs-on: ubuntu-latest
     strategy:
@@ -61,11 +61,9 @@ jobs:
           # Linux builds - PyTorch 2.7 + CUDA 12.8
           - platform: linux
             build-target: "linux-pytorch27-cu128-python312"
-            test-target: "test-linux-pytorch27-cu128-python312"
           # Linux builds - PyTorch 2.8 + CUDA 12.9
           - platform: linux
             build-target: "linux-pytorch28-cu129-python312"
-            test-target: "test-linux-pytorch28-cu129-python312"
 
     steps:
       - name: Checkout repository
@@ -74,37 +72,53 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Log in to Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Free Disk Space (Aggressive)
         uses: jlumbroso/free-disk-space@main
         with:
-          # Free up additional space by removing cached tools (6GB+)
           tool-cache: true
-          # Remove standard unwanted software
           android: true
           dotnet: true
           haskell: true
           large-packages: true
-          # Keep some Docker functionality but remove unused images
           docker-images: true
           swap-storage: true
 
-      - name: Build wheel using docker-bake
-        run: |
-          docker buildx bake --file docker-bake.hcl ${{ matrix.build-target }}
+      - name: Build wheels using Docker Bake
+        uses: docker/bake-action@v4
+        with:
+          files: docker-bake.hcl
+          targets: ${{ matrix.build-target }}
+          set: |
+            *.cache-from=type=gha,scope=build-${{ matrix.build-target }}
+            *.cache-to=type=gha,scope=build-${{ matrix.build-target }},mode=max
+          push: false
 
-      # Test wheel using Docker
-      - name: Test wheel using Docker
-        run: |
-          docker buildx bake --file docker-bake.hcl ${{ matrix.test-target }}
+      - name: Test wheels using Docker Bake  
+        uses: docker/bake-action@v4
+        with:
+          files: docker-bake.hcl
+          targets: test-${{ matrix.build-target }}
+          set: |
+            *.cache-from=type=gha,scope=test-${{ matrix.build-target }}
+            *.cache-to=type=gha,scope=test-${{ matrix.build-target }},mode=max
+          push: false
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sageattention-docker-wheels-${{ matrix.platform }}-${{ matrix.build-target }}
-          path: dist/*.whl
+          name: wheels-${{ matrix.build-target }}-${{ github.run_id }}
+          path: ./dist/*.whl
           retention-days: 7
 
-  # Job 3: Build Windows wheels using Docker
+  # Job 3: Build Windows wheels (dedicated runner due to platform constraints)
   build-windows-wheels:
     needs: validate-dockerfiles
     runs-on: windows-2022
@@ -114,15 +128,24 @@ jobs:
           # Windows builds - PyTorch 2.7 + CUDA 12.8
           - platform: windows
             build-target: "windows-pytorch27-cu128-python312"
-            test-target: "test-windows-pytorch27-cu128-python312"
           # Windows builds - PyTorch 2.8 + CUDA 12.9
           - platform: windows
             build-target: "windows-pytorch28-cu129-python312"
-            test-target: "test-windows-pytorch28-cu129-python312"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Free Disk Space (Windows)
         shell: powershell
@@ -131,138 +154,104 @@ jobs:
           Write-Output "=== BEFORE CLEANUP ==="
           Get-WmiObject -Class Win32_LogicalDisk | Select-Object Size,FreeSpace,DeviceID | Format-Table -AutoSize
           
-          # Keep Visual Studio for Docker Windows containers (may be needed for compilation)
-          
           # Remove .NET frameworks
           Write-Output "Removing .NET components..."
           Get-ChildItem -Path "C:\Program Files\dotnet" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          Get-ChildItem -Path "C:\Program Files (x86)\dotnet" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
           
-          # Remove Windows SDK
-          Write-Output "Removing Windows SDK..."
-          Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          
-          # Remove Android SDK
-          Write-Output "Removing Android SDK..."
-          if (Test-Path "$env:ANDROID_HOME") { Remove-Item -Path "$env:ANDROID_HOME" -Recurse -Force -ErrorAction SilentlyContinue }
-          if (Test-Path "$env:ANDROID_SDK_ROOT") { Remove-Item -Path "$env:ANDROID_SDK_ROOT" -Recurse -Force -ErrorAction SilentlyContinue }
-          
-          # Clean tool cache
-          Write-Output "Cleaning tool cache..."
-          Get-ChildItem -Path "$env:AGENT_TOOLSDIRECTORY" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          
-          # Clean temp directories
-          Write-Output "Cleaning temp directories..."
-          Get-ChildItem -Path "C:\Windows\Temp" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          Get-ChildItem -Path "$env:TEMP" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          
-          # Clean Docker (if Docker Desktop is installed)
-          Write-Output "Cleaning Docker..."
-          docker system prune -af --volumes 2>$null
-          
-          # Force garbage collection
-          [System.GC]::Collect()
+          # Remove unnecessary Windows features
+          Write-Output "Removing Windows features..."
+          Get-WindowsOptionalFeature -Online | Where-Object {$_.State -eq "Enabled" -and $_.FeatureName -match "IIS|SMB1|WindowsMediaPlayer"} | Disable-WindowsOptionalFeature -Online -Remove -NoRestart
           
           # Get final disk space
           Write-Output "=== AFTER CLEANUP ==="
           Get-WmiObject -Class Win32_LogicalDisk | Select-Object Size,FreeSpace,DeviceID | Format-Table -AutoSize
 
-      - name: Check Docker configuration
+      - name: Build wheels using Docker Bake
         run: |
-          Write-Output "=== Docker Version ==="
-          docker version
-          Write-Output "`n=== Docker Info ==="
-          docker info
-          Write-Output "`n=== Available Docker Images ==="
-          docker images
+          # Use Docker Bake for Windows builds with local output
+          docker buildx bake -f docker-bake.hcl ${{ matrix.build-target }} `
+            --set "*.cache-from=type=gha,scope=build-${{ matrix.build-target }}" `
+            --set "*.cache-to=type=gha,scope=build-${{ matrix.build-target }},mode=max"
 
-      - name: Set build variables
+      - name: Test wheels using Docker Bake
         run: |
-          # Extract version info from build target
-          if ("${{ matrix.build-target }}" -like "*pytorch27*") {
-            $torchVersion = "2.7.0"
-          } else {
-            $torchVersion = "2.8.0"
-          }
-          
-          if ("${{ matrix.build-target }}" -like "*cu128*") {
-            $cudaVersion = "12.8.1"
-          } else {
-            $cudaVersion = "12.9.1"
-          }
-          
-          Write-Output "TORCH_VERSION=$torchVersion" >> $env:GITHUB_ENV
-          Write-Output "CUDA_VERSION=$cudaVersion" >> $env:GITHUB_ENV
-          Write-Output "PYTHON_VERSION=3.12" >> $env:GITHUB_ENV
-          Write-Output "TORCH_CUDA_ARCH_LIST=8.0;8.6;8.9;9.0;12.0" >> $env:GITHUB_ENV
-
-      - name: Build wheel using docker build
-        run: |
-          # Build the wheel using legacy docker build (Windows compatibility)
-          docker build -f dockerfile.builder.windows --target wheel --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-wheel .
-          
-          # Extract wheel from container
-          $containerId = docker create sageattention-wheel
-          docker cp "${containerId}:/" ./dist
-          docker rm $containerId
-
-      # Test wheel using Docker
-      - name: Test wheel using docker build
-        run: |
-          # Test the build using legacy docker build (Windows compatibility)
-          docker build -f dockerfile.builder.windows --target test --build-arg CUDA_VERSION=$env:CUDA_VERSION --build-arg PYTHON_VERSION=$env:PYTHON_VERSION --build-arg TORCH_VERSION=$env:TORCH_VERSION --build-arg TORCH_CUDA_ARCH_LIST="$env:TORCH_CUDA_ARCH_LIST" -t sageattention-test .
-          docker run --rm sageattention-test
+          # Test the wheels using Docker Bake
+          docker buildx bake -f docker-bake.hcl test-${{ matrix.build-target }} `
+            --set "*.cache-from=type=gha,scope=test-${{ matrix.build-target }}" `
+            --set "*.cache-to=type=gha,scope=test-${{ matrix.build-target }},mode=max"
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sageattention-docker-wheels-${{ matrix.platform }}-${{ matrix.build-target }}
-          path: dist/*.whl
+          name: wheels-${{ matrix.build-target }}-${{ github.run_id }}
+          path: ./dist/*.whl
           retention-days: 7
 
-  # Job 4: Publish wheels
-  publish-wheels-docker:
-    needs: [build-linux-wheels, build-windows-wheels]
+  # Job 4: Aggregate and summarize build results
+  build-summary:
+    needs: [build-wheels, build-windows-wheels]
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    
+    if: always()
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download all wheel artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: sageattention-docker-wheels-*
-          merge-multiple: true
-          path: wheels/
+          path: ./all-wheels
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Install twine
+      - name: Display build results
         run: |
-          pip install twine
-
-      - name: Create PyPI configuration
-        run: |
-          cat > ~/.pypirc << EOF
-          [distutils]
-          index-servers =
-              github
+          echo "## 🛠️ SageAttention Wheel Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | PyTorch | CUDA | Python | Status | Wheel Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|------|--------|--------|-------------|" >> $GITHUB_STEP_SUMMARY
           
-          [github]
-          repository = https://github.com/${{ github.repository }}/packages/pypi
-          username = ${{ github.actor }}
-          password = ${{ secrets.GITHUB_TOKEN }}
-          EOF
-
-      - name: Publish to GitHub Packages
-        run: |
-          # Find all wheel files
-          find wheels/ -name "*.whl" -type f | while read wheel; do
-            echo "Uploading $wheel to GitHub Packages..."
-            twine upload --repository github "$wheel"
+          total_wheels=0
+          for artifact_dir in ./all-wheels/wheels-*; do
+            if [ -d "$artifact_dir" ]; then
+              artifact_name=$(basename "$artifact_dir")
+              wheel_count=$(find "$artifact_dir" -name "*.whl" | wc -l)
+              total_wheels=$((total_wheels + wheel_count))
+              
+              # Parse artifact name for build details
+              if [[ "$artifact_name" == *"linux"* ]]; then
+                platform="🐧 Linux"
+              else
+                platform="🪟 Windows"
+              fi
+              
+              if [[ "$artifact_name" == *"pytorch27"* ]]; then
+                pytorch="2.7.0"
+              else
+                pytorch="2.8.0"
+              fi
+              
+              if [[ "$artifact_name" == *"cu128"* ]]; then
+                cuda="12.8"
+              else
+                cuda="12.9"
+              fi
+              
+              if [ "$wheel_count" -gt 0 ]; then
+                status="✅ Success"
+              else
+                status="❌ Failed"
+              fi
+              
+              echo "| $platform | $pytorch | $cuda | 3.12 | $status | $wheel_count |" >> $GITHUB_STEP_SUMMARY
+            fi
           done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total wheels built:** $total_wheels" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All wheels are available as GitHub Actions artifacts with 7-day retention." >> $GITHUB_STEP_SUMMARY
+
+      - name: Check build success
+        run: |
+          wheel_count=$(find ./all-wheels -name "*.whl" 2>/dev/null | wc -l)
+          if [ "$wheel_count" -eq 0 ]; then
+            echo "❌ No wheels were built successfully"
+            exit 1
+          else
+            echo "✅ Build completed successfully with $wheel_count wheels"
+          fi
