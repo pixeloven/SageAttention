@@ -1,6 +1,6 @@
 # SageAttention Build and Validation Makefile
 
-.PHONY: validate-dockerfiles build-linux build-windows test-dockerfiles help
+.PHONY: validate-dockerfiles build-linux test-dockerfiles help
 
 # Default target
 help:
@@ -31,8 +31,3 @@ test-dockerfiles:
 build-linux:
 	@echo "🔨 Building Linux wheels..."
 	docker buildx bake --file docker-bake.hcl linux
-
-# Build Windows wheels (requires Windows Docker host)
-build-windows:
-	@echo "🔨 Building Windows wheels..."
-	docker buildx bake --file docker-bake.hcl windows
