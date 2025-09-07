@@ -2,16 +2,26 @@
 Write-Host 'Detecting Visual Studio Build Tools...'
 
 $vcvarsPath = $null
-$possiblePaths = @(
+# Prioritize vcvars64.bat over VsDevCmd.bat for better C++ support
+$vcvars64Paths = @(
     'C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat',
     'C:\Program Files\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat',
     'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat',
     'C:\Program Files\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat',
     'C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat',
     'C:\Program Files\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat',
-    'C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat',
-    'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat'
+    'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat',
+    'C:\Program Files\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat'
 )
+
+$vsDevCmdPaths = @(
+    'C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat',
+    'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat',
+    'C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\Tools\VsDevCmd.bat',
+    'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat'
+)
+
+$possiblePaths = $vcvars64Paths + $vsDevCmdPaths
 
 foreach ($path in $possiblePaths) {
     if (Test-Path $path) {
@@ -51,8 +61,16 @@ if (-not $vcvarsPath) {
 }
 
 # Create build script with enhanced environment setup
+$vcvarsCall = if ($vcvarsPath -like "*VsDevCmd.bat") {
+    # For VsDevCmd.bat, explicitly enable C++ build tools
+    "call `"$vcvarsPath`" -arch=x64 -host_arch=x64"
+} else {
+    # For vcvars64.bat, use standard call
+    "call `"$vcvarsPath`""
+}
+
 $buildScript = '@echo off' + "`r`n" + 
-               "call `"$vcvarsPath`"" + "`r`n" + 
+               $vcvarsCall + "`r`n" + 
                'echo === Post-vcvars Environment ===' + "`r`n" +
                'echo PATH=%PATH%' + "`r`n" +
                'echo INCLUDE=%INCLUDE%' + "`r`n" +
