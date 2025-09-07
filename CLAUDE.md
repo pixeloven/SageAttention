@@ -41,14 +41,6 @@ docker buildx bake --file docker-bake.hcl test-linux-pytorch28-cu129-python312
 docker buildx bake --file docker-bake.hcl test-all
 ```
 
-### Native Windows Build
-```bash
-# Windows-only native build (requires CUDA toolkit on Windows)
-pip install -e .
-
-# Run tests
-python tests/test_sageattn.py
-```
 
 ## Architecture
 
@@ -59,7 +51,7 @@ python tests/test_sageattn.py
 - **sageattention/triton/**: Triton kernel implementations for different quantization schemes
 
 ### Build Matrix Support
-- **Platforms**: Linux (manylinux_x86_64), Windows (win_amd64)
+- **Platforms**: Linux (manylinux_x86_64)
 - **Python**: 3.9+ (primary testing on 3.12)
 - **PyTorch**: 2.7.0, 2.8.0
 - **CUDA**: 12.8.1, 12.9.1
@@ -103,7 +95,6 @@ The project uses an optimized multi-stage Docker build system for efficient cach
 
 ### Platform-Specific Files
 - **dockerfile.builder.linux**: Optimized Linux multi-stage build with cache mounts
-- **dockerfile.builder.windows**: Optimized Windows multi-stage build with shared layers
 
 ### Testing
 - Basic functionality test in `tests/test_sageattn.py`

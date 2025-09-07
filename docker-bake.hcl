@@ -52,37 +52,6 @@ target "linux-pytorch28-cu129-python312" {
   cache-to = ["type=gha,mode=max"]
 }
 
-# Windows Builds
-# Format: windows-pytorch{cuda}-{python}
-target "windows-pytorch27-cu128-python312" {
-  dockerfile = "dockerfile.builder.windows"
-  target = "wheel"
-  platforms = ["windows/amd64"]
-  output = ["type=local,dest=./dist"]
-  args = {
-    CUDA_VERSION = "12.8.1"
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_VERSION = "2.7.0"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-target "windows-pytorch28-cu129-python312" {
-  dockerfile = "dockerfile.builder.windows"
-  target = "wheel"
-  platforms = ["windows/amd64"]
-  output = ["type=local,dest=./dist"]
-  args = {
-    CUDA_VERSION = "12.9.1"
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_VERSION = "2.8.0"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
 
 # Test Targets
 # Format: test-{platform}-pytorch{cuda}-{python}
@@ -114,33 +83,6 @@ target "test-linux-pytorch28-cu129-python312" {
   cache-to = ["type=gha,mode=max"]
 }
 
-target "test-windows-pytorch27-cu128-python312" {
-  dockerfile = "dockerfile.builder.windows"
-  target = "test"
-  platforms = ["windows/amd64"]
-  args = {
-    CUDA_VERSION = "12.8.1"
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_VERSION = "2.7.0"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
-
-target "test-windows-pytorch28-cu129-python312" {
-  dockerfile = "dockerfile.builder.windows"
-  target = "test"
-  platforms = ["windows/amd64"]
-  args = {
-    CUDA_VERSION = "12.9.1"
-    PYTHON_VERSION = PYTHON_VERSION
-    TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST
-    TORCH_VERSION = "2.8.0"
-  }
-  cache-from = ["type=gha"]
-  cache-to = ["type=gha,mode=max"]
-}
 
 # Convenience Groups
 group "default" {
@@ -154,41 +96,29 @@ group "linux" {
   ]
 }
 
-group "windows" {
-  targets = [
-    "windows-pytorch27-cu128-python312",
-    "windows-pytorch28-cu129-python312"
-  ]
-}
 
 group "pytorch27" {
   targets = [
-    "linux-pytorch27-cu128-python312",
-    "windows-pytorch27-cu128-python312"
+    "linux-pytorch27-cu128-python312"
   ]
 }
 
 group "pytorch28" {
   targets = [
-    "linux-pytorch28-cu129-python312",
-    "windows-pytorch28-cu129-python312"
+    "linux-pytorch28-cu129-python312"
   ]
 }
 
 group "all" {
   targets = [
     "linux-pytorch27-cu128-python312",
-    "linux-pytorch28-cu129-python312",
-    "windows-pytorch27-cu128-python312",
-    "windows-pytorch28-cu129-python312"
+    "linux-pytorch28-cu129-python312"
   ]
 }
 
 group "test-all" {
   targets = [
     "test-linux-pytorch27-cu128-python312",
-    "test-linux-pytorch28-cu129-python312",
-    "test-windows-pytorch27-cu128-python312",
-    "test-windows-pytorch28-cu129-python312"
+    "test-linux-pytorch28-cu129-python312"
   ]
 } 
