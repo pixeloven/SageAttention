@@ -206,9 +206,10 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Download all artifacts
+      - name: Download wheel artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: wheels-*
           path: ./all-wheels
 
       - name: Display build results
@@ -285,9 +286,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Download all artifacts
+      - name: Download wheel artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: wheels-*
           path: ./all-wheels
 
       - name: Prepare wheels for publishing
@@ -301,20 +303,23 @@ jobs:
         id: version
         run: |
           pip install toml
-          python -c "import toml; print('version=' + toml.load('pyproject.toml')['project']['version'])" >> $GITHUB_OUTPUT
+          base_version=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+          full_version="${base_version}-build.${{ github.run_number }}"
+          echo "base_version=${base_version}" >> $GITHUB_OUTPUT
+          echo "full_version=${full_version}" >> $GITHUB_OUTPUT
 
       - name: Create Git tag
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
-          git push origin "v${{ steps.version.outputs.version }}"
+          git tag -a "v${{ steps.version.outputs.full_version }}" -m "Release v${{ steps.version.outputs.full_version }}"
+          git push origin "v${{ steps.version.outputs.full_version }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v${{ steps.version.outputs.version }}"
-          name: "Release v${{ steps.version.outputs.version }}"
+          tag_name: "v${{ steps.version.outputs.full_version }}"
+          name: "Release v${{ steps.version.outputs.full_version }}"
           files: dist/*.whl
           generate_release_notes: true
           make_latest: true
