@@ -14,7 +14,7 @@ name = "sageattention"
 version = "2.2.0"
 description = "Accurate and efficient plug-and-play low-bit attention."
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 requires-python = ">=3.9"
 authors = [
     {name = "SageAttention team"}

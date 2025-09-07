@@ -3,7 +3,7 @@ Write-Host 'Installing Python 3.12...'
 choco install python312 -y
 
 Write-Host 'Installing Visual Studio Build Tools with complete C++ toolchain...'
-choco install visualstudio2019buildtools --package-parameters '--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621' -y
+choco install visualstudio2019buildtools --package-parameters '--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621 --add Microsoft.VisualStudio.Component.VC.CMake.Project --includeRecommended' -y
 
 Write-Host 'Installing Git...'
 choco install git -y

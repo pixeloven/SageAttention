@@ -62,8 +62,8 @@ if (-not $vcvarsPath) {
 
 # Create build script with enhanced environment setup
 $vcvarsCall = if ($vcvarsPath -like "*VsDevCmd.bat") {
-    # For VsDevCmd.bat, explicitly enable C++ build tools
-    "call `"$vcvarsPath`" -arch=x64 -host_arch=x64"
+    # For VsDevCmd.bat, explicitly enable C++ build tools with all required components
+    "call `"$vcvarsPath`" -arch=x64 -host_arch=x64 -vcvars_ver=14.29 -startdir=none"
 } else {
     # For vcvars64.bat, use standard call
     "call `"$vcvarsPath`""
@@ -71,13 +71,23 @@ $vcvarsCall = if ($vcvarsPath -like "*VsDevCmd.bat") {
 
 $buildScript = '@echo off' + "`r`n" + 
                $vcvarsCall + "`r`n" + 
+               'if %ERRORLEVEL% neq 0 (' + "`r`n" +
+               '    echo ERROR: Failed to setup Visual Studio environment' + "`r`n" +
+               '    exit /b 1' + "`r`n" +
+               ')' + "`r`n" +
                'echo === Post-vcvars Environment ===' + "`r`n" +
                'echo PATH=%PATH%' + "`r`n" +
                'echo INCLUDE=%INCLUDE%' + "`r`n" +
                'echo LIB=%LIB%' + "`r`n" +
                'echo Checking cl.exe availability...' + "`r`n" +
                'where cl' + "`r`n" +
-               'cl 2>nul || echo cl.exe not found in PATH' + "`r`n" +
+               'cl 2>nul || (' + "`r`n" +
+               '    echo ERROR: cl.exe not found in PATH after VS setup' + "`r`n" +
+               '    echo Available VS tools:' + "`r`n" +
+               '    dir "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC" 2>nul' + "`r`n" +
+               '    exit /b 1' + "`r`n" +
+               ')' + "`r`n" +
+               'echo cl.exe found successfully' + "`r`n" +
                'echo === Starting Python Build ===' + "`r`n" +
                'set DISTUTILS_USE_SDK=1' + "`r`n" + 
                'set MSSdk=1' + "`r`n" +
