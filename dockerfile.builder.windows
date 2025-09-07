@@ -42,11 +42,7 @@ RUN powershell -ExecutionPolicy Bypass -File C:/verify-python.ps1
 # Create virtual environment using full Python path
 RUN C:\\Python312\\python.exe -m venv C:\\opt\\venv
 
-# Copy CUDA setup script
-COPY scripts/setup-cuda-windows.ps1 C:/setup-cuda.ps1
-
-# Run CUDA detection and setup
-RUN powershell -ExecutionPolicy Bypass -File C:/setup-cuda.ps1
+# CUDA is installed by the dependency script and will be detected later in build environment setup
 
 
 # Set basic environment for current session - Python paths first
