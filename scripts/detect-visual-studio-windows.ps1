@@ -1,4 +1,4 @@
-# Detect Visual Studio Build Tools and create build script
+# Detect Visual Studio Build Tools and create build script (v2 - prioritize vcvars64)
 Write-Host 'Detecting Visual Studio Build Tools...'
 
 $vcvarsPath = $null
@@ -88,3 +88,4 @@ Set-Content -Path 'C:\src\build.bat' -Value $buildScript -Encoding ASCII
 
 Write-Host 'Build script created with VS path:'
 Write-Host $vcvarsPath
+Write-Host 'Script type:' $(if ($vcvarsPath -like "*vcvars64.bat") { "vcvars64.bat (proper C++ environment)" } else { "VsDevCmd.bat (with architecture flags)" })
