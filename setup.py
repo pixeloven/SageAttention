@@ -68,20 +68,34 @@ NVCC_FLAGS_COMMON += [f"-D_GLIBCXX_USE_CXX11_ABI={ABI}"]
 # Try to find CUDA_HOME if it's not set
 if CUDA_HOME is None:
     # Check common CUDA installation paths
-    cuda_paths = [
-        "/usr/local/cuda",
-        "/usr/local/cuda-12.9",
-        "/usr/local/cuda-12.8",
-        "/usr/local/cuda-12.4",
-        "/usr/local/cuda-12.3",
-        "/usr/local/cuda-12.0",
-        os.getenv("CUDA_HOME"),
-        os.getenv("CUDA_ROOT"),
-    ]
+    if os.name == "nt":  # Windows
+        cuda_paths = [
+            os.getenv("CUDA_HOME"),
+            os.getenv("CUDA_ROOT"),
+            r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9",
+            r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8",
+            r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4",
+            r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3",
+            r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0",
+            r"C:\tools\cuda",  # Chocolatey install path
+        ]
+    else:  # Linux/Unix
+        cuda_paths = [
+            "/usr/local/cuda",
+            "/usr/local/cuda-12.9",
+            "/usr/local/cuda-12.8",
+            "/usr/local/cuda-12.4",
+            "/usr/local/cuda-12.3",
+            "/usr/local/cuda-12.0",
+            os.getenv("CUDA_HOME"),
+            os.getenv("CUDA_ROOT"),
+        ]
     
     for cuda_path in cuda_paths:
         if cuda_path and os.path.exists(cuda_path):
-            nvcc_path = os.path.join(cuda_path, "bin", "nvcc")
+            # Handle Windows .exe extension
+            nvcc_exe = "nvcc.exe" if os.name == "nt" else "nvcc"
+            nvcc_path = os.path.join(cuda_path, "bin", nvcc_exe)
             if os.path.isfile(nvcc_path):
                 os.environ["CUDA_HOME"] = cuda_path
                 print(f"Found CUDA at: {cuda_path}")
@@ -102,7 +116,9 @@ def get_nvcc_cuda_version(cuda_dir: str) -> Version:
 
     Adapted from https://github.com/NVIDIA/apex/blob/8b7a1ff183741dd8f9b87e7bafd04cfde99cea28/setup.py
     """
-    nvcc_path = os.path.join(cuda_dir, "bin", "nvcc")
+    # Handle Windows .exe extension
+    nvcc_exe = "nvcc.exe" if os.name == "nt" else "nvcc"
+    nvcc_path = os.path.join(cuda_dir, "bin", nvcc_exe)
     if not os.path.isfile(nvcc_path):
         raise RuntimeError(f"nvcc not found at {nvcc_path}. CUDA compiler is required to build the package.")
     

@@ -38,8 +38,37 @@ docker buildx inspect --bootstrap
 ```bash
 # Test specific builds
 docker buildx bake --file docker-bake.hcl test-linux-pytorch28-cu129-python312
+docker buildx bake --file docker-bake.hcl test-windows-pytorch28-cu129-python312
 docker buildx bake --file docker-bake.hcl test-all
 ```
+
+### Windows-Specific Setup
+For Windows builds using Docker Desktop:
+
+```powershell
+# Switch to Windows containers mode
+& 'C:\Program Files\Docker\Docker\DockerCli.exe' -SwitchWindowsEngine
+
+# Wait for switch to complete
+Start-Sleep -Seconds 30
+
+# Verify Windows containers mode
+docker version
+docker system info
+
+# Build Windows wheels
+docker buildx bake --file docker-bake.hcl windows
+docker buildx bake --file docker-bake.hcl windows-pytorch28-cu129-python312
+
+# Test Windows builds
+docker buildx bake --file docker-bake.hcl test-windows
+```
+
+### Platform-Specific Notes
+- **Linux builds**: Use standard Docker with BuildKit cache mounts for optimal performance
+- **Windows builds**: Require Docker Desktop with Windows containers mode enabled
+- **Windows limitations**: GPU support in Windows containers has restrictions (see Microsoft docs)
+- **CUDA paths**: Automatically detected on both platforms with fallback paths
 
 
 ## Architecture
@@ -51,8 +80,8 @@ docker buildx bake --file docker-bake.hcl test-all
 - **sageattention/triton/**: Triton kernel implementations for different quantization schemes
 
 ### Build Matrix Support
-- **Platforms**: Linux (manylinux_x86_64)
-- **Python**: 3.9+ (primary testing on 3.12)
+- **Platforms**: Linux (manylinux_x86_64), Windows (win_amd64)
+- **Python**: 3.9+ (Windows supports 3.9-3.12, Linux primary testing on 3.12)
 - **PyTorch**: 2.7.0, 2.8.0
 - **CUDA**: 12.8.1, 12.9.1
 - **Compute Capabilities**: 8.0, 8.6, 8.9, 9.0, 12.0
@@ -95,6 +124,7 @@ The project uses an optimized multi-stage Docker build system for efficient cach
 
 ### Platform-Specific Files
 - **dockerfile.builder.linux**: Optimized Linux multi-stage build with cache mounts
+- **dockerfile.builder.windows**: Windows multi-stage build with MSVC and Chocolatey package management
 
 ### Testing
 - Basic functionality test in `tests/test_sageattn.py`
@@ -107,7 +137,9 @@ Built wheels are saved to `./dist/` directory (git-ignored) with PEP 427 complia
 **Naming Convention (PEP 427 Compliant):**
 - `sageattention-{version}-{build_tag}-{python}-{abi}-{platform}.whl`
 - Build tag format: `{pytorch_version}.{cuda_version}` (digits required by PEP 427)
-- Example: `sageattention-2.2.0-280.129-cp312-cp312-linux_x86_64.whl`
+- Examples:
+  - Linux: `sageattention-2.2.0-280.129-cp312-cp312-linux_x86_64.whl`
+  - Windows: `sageattention-2.2.0-280.129-cp312-cp312-win_amd64.whl`
 
 **Benefits:**
 - **PEP 427 compliance**: Follows Python wheel naming standards

@@ -1,0 +1,213 @@
+name: Windows Wheels
+
+on:
+  push:
+    branches: [main, add-windows-back]
+  pull_request:
+    branches: [main, add-windows-back]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Job 1: Validate Windows Dockerfile
+  validate-dockerfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run hadolint on Windows Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: dockerfile.builder.windows
+          config: .hadolint.yaml
+          failure-threshold: error
+
+      - name: Dockerfile validation summary
+        run: |
+          echo "✅ Windows Dockerfile passed validation!"
+          echo "This ensures syntax correctness and follows best practices before builds."
+
+  # Job 2: Build Windows wheels using Docker containers
+  build-windows-wheels:
+    needs: validate-dockerfile
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # PyTorch 2.7 builds
+          - pytorch_version: "2.7.0"
+            cuda_version: "12.8.1"
+            python_version: "3.9"
+            build_name: "windows-pytorch27-cu128-python39"
+          - pytorch_version: "2.7.0"
+            cuda_version: "12.8.1"
+            python_version: "3.10"
+            build_name: "windows-pytorch27-cu128-python310"
+          - pytorch_version: "2.7.0"
+            cuda_version: "12.8.1"
+            python_version: "3.11"
+            build_name: "windows-pytorch27-cu128-python311"
+          - pytorch_version: "2.7.0"
+            cuda_version: "12.8.1"
+            python_version: "3.12"
+            build_name: "windows-pytorch27-cu128-python312"
+          # PyTorch 2.8 builds
+          - pytorch_version: "2.8.0"
+            cuda_version: "12.9.1"
+            python_version: "3.9"
+            build_name: "windows-pytorch28-cu129-python39"
+          - pytorch_version: "2.8.0"
+            cuda_version: "12.9.1"
+            python_version: "3.10"
+            build_name: "windows-pytorch28-cu129-python310"
+          - pytorch_version: "2.8.0"
+            cuda_version: "12.9.1"
+            python_version: "3.11"
+            build_name: "windows-pytorch28-cu129-python311"
+          - pytorch_version: "2.8.0"
+            cuda_version: "12.9.1"
+            python_version: "3.12"
+            build_name: "windows-pytorch28-cu129-python312"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Desktop for Windows containers
+        shell: powershell
+        run: |
+          # Switch Docker Desktop to Windows containers mode
+          & 'C:\Program Files\Docker\Docker\DockerCli.exe' -SwitchWindowsEngine
+          Start-Sleep -Seconds 30
+
+      - name: Verify Windows containers mode
+        shell: powershell
+        run: |
+          docker version
+          docker system info
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+          platforms: windows/amd64
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build wheel using Docker Bake
+        id: build
+        shell: powershell
+        run: |
+          try {
+            # Build the specific Windows target
+            docker buildx bake --file docker-bake.hcl ${{ matrix.build_name }}
+
+            # Verify wheel was created
+            if (Test-Path "./dist/*.whl") {
+              $wheels = Get-ChildItem "./dist/*.whl" | Select-Object -ExpandProperty Name
+              Write-Output "Built wheels: $($wheels -join ', ')"
+              echo "wheel_built=true" >> $env:GITHUB_OUTPUT
+            } else {
+              Write-Error "No wheels found in ./dist/"
+              echo "wheel_built=false" >> $env:GITHUB_OUTPUT
+              exit 1
+            }
+          } catch {
+            Write-Error "Build failed: $_"
+            echo "wheel_built=false" >> $env:GITHUB_OUTPUT
+            exit 1
+          }
+
+      - name: Test wheel installation
+        if: steps.build.outputs.wheel_built == 'true'
+        shell: powershell
+        run: |
+          # Test wheel using Docker
+          docker buildx bake --file docker-bake.hcl test-${{ matrix.build_name }}
+
+      - name: Verify wheel naming convention (PEP 427)
+        if: steps.build.outputs.wheel_built == 'true'
+        shell: powershell
+        run: |
+          $wheels = Get-ChildItem "./dist/*.whl"
+          foreach ($wheel in $wheels) {
+            Write-Output "Verifying wheel: $($wheel.Name)"
+
+            # Expected pattern: sageattention-{version}-{torch}.{cuda}-cp{python}-cp{python}-win_amd64.whl
+            # Example: sageattention-2.2.0-280.129-cp312-cp312-win_amd64.whl
+            if ($wheel.Name -match "sageattention-[\d\.]+-.+-cp\d+-cp\d+-win_amd64\.whl") {
+              Write-Output "✅ Wheel name follows PEP 427 convention"
+            } else {
+              Write-Error "❌ Wheel name does not follow PEP 427 convention"
+              exit 1
+            }
+          }
+
+      - name: Upload wheel artifacts
+        if: steps.build.outputs.wheel_built == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.build_name }}
+          path: dist/*.whl
+          retention-days: 7
+
+      - name: Build summary
+        shell: powershell
+        run: |
+          Write-Output "## Build Summary - ${{ matrix.build_name }}"
+          Write-Output "- PyTorch: ${{ matrix.pytorch_version }}"
+          Write-Output "- CUDA: ${{ matrix.cuda_version }}"
+          Write-Output "- Python: ${{ matrix.python_version }}"
+          Write-Output "- Platform: Windows x64"
+
+          if (Test-Path "./dist/*.whl") {
+            $wheels = Get-ChildItem "./dist/*.whl" | Select-Object -ExpandProperty Name
+            Write-Output "- Built wheels: $($wheels -join ', ')"
+          }
+
+  # Job 3: Collect and verify all wheels
+  collect-wheels:
+    needs: build-windows-wheels
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: collected-wheels
+
+      - name: List collected wheels
+        run: |
+          echo "## All Windows Wheels Built:"
+          ls -la collected-wheels/
+          echo ""
+          echo "Total wheels: $(ls collected-wheels/*.whl 2>/dev/null | wc -l)"
+
+      - name: Upload combined wheel collection
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-windows-wheels
+          path: collected-wheels/*.whl
+          retention-days: 30
