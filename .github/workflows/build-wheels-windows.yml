@@ -65,6 +65,7 @@ jobs:
 
       - name: Generate build matrix
         id: generate
+        shell: bash
         run: |
           profile="${{ needs.validate.outputs.build_profile }}"
 
