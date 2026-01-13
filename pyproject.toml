@@ -5,6 +5,7 @@ requires = [
     "pybind11",
     "setuptools",
     "wheel",
+    "ninja",
     # torch version will be added by update_pyproject.py
     "torch",
 ]

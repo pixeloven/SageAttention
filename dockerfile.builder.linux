@@ -91,7 +91,7 @@ RUN python update_pyproject.py
 
 # Install build dependencies
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install numpy packaging pybind11
+    pip install numpy packaging pybind11 ninja
 
 # Build SageAttention wheel with cache mount for compilation artifacts
 RUN --mount=type=cache,target=/tmp/ccache \
