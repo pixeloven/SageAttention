@@ -1,0 +1,427 @@
+name: Build SageAttention Wheels (Linux)
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_profile:
+        description: 'Build profile to use'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable      # Latest Python for each PyTorch version (3 wheels)
+          - pytorch26   # All Python versions for PyTorch 2.6 (4 wheels)
+          - pytorch27   # All Python versions for PyTorch 2.7 (3 wheels)
+          - pytorch28   # All Python versions for PyTorch 2.8 (3 wheels)
+          - python310   # PyTorch 2.6-2.8 for Python 3.10 (3 wheels)
+          - python311   # PyTorch 2.6-2.8 for Python 3.11 (3 wheels)
+          - python312   # PyTorch 2.6-2.8 for Python 3.12 (3 wheels)
+          - sage2-all   # All SageAttention 2/2++ combinations (10 wheels)
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Job 1: Validate configuration
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      build_profile: ${{ steps.set-profile.outputs.profile }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set build profile
+        id: set-profile
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "profile=${{ inputs.build_profile }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "profile=sage2-all" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "profile=stable" >> $GITHUB_OUTPUT
+          else
+            echo "profile=default" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run hadolint on Dockerfiles
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: dockerfile.builder.linux
+          config: .hadolint.yaml
+          failure-threshold: error
+
+      - name: Validation summary
+        run: |
+          echo "✅ Dockerfile validation passed"
+          echo "📦 Build profile: ${{ steps.set-profile.outputs.profile }}"
+
+  # Job 2: Generate build matrix dynamically
+  generate-matrix:
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate build matrix
+        id: generate
+        run: |
+          profile="${{ needs.validate.outputs.build_profile }}"
+
+          # Define all possible build configurations
+          # Format: target_name|python_version|pytorch_version|cuda_version|display_name
+          declare -a all_builds=(
+            # PyTorch 2.6 + CUDA 12.6
+            "linux-sage2-pytorch26-cu126-python39|3.9|2.6.0|12.6|PyTorch 2.6.0 + CUDA 12.6 + Python 3.9"
+            "linux-sage2-pytorch26-cu126-python310|3.10|2.6.0|12.6|PyTorch 2.6.0 + CUDA 12.6 + Python 3.10"
+            "linux-sage2-pytorch26-cu126-python311|3.11|2.6.0|12.6|PyTorch 2.6.0 + CUDA 12.6 + Python 3.11"
+            "linux-sage2-pytorch26-cu126-python312|3.12|2.6.0|12.6|PyTorch 2.6.0 + CUDA 12.6 + Python 3.12"
+            # PyTorch 2.7 + CUDA 12.8
+            "linux-sage2-pytorch27-cu128-python310|3.10|2.7.0|12.8|PyTorch 2.7.0 + CUDA 12.8 + Python 3.10"
+            "linux-sage2-pytorch27-cu128-python311|3.11|2.7.0|12.8|PyTorch 2.7.0 + CUDA 12.8 + Python 3.11"
+            "linux-sage2-pytorch27-cu128-python312|3.12|2.7.0|12.8|PyTorch 2.7.0 + CUDA 12.8 + Python 3.12"
+            # PyTorch 2.8 + CUDA 12.9
+            "linux-sage2-pytorch28-cu129-python310|3.10|2.8.0|12.9|PyTorch 2.8.0 + CUDA 12.9 + Python 3.10"
+            "linux-sage2-pytorch28-cu129-python311|3.11|2.8.0|12.9|PyTorch 2.8.0 + CUDA 12.9 + Python 3.11"
+            "linux-sage2-pytorch28-cu129-python312|3.12|2.8.0|12.9|PyTorch 2.8.0 + CUDA 12.9 + Python 3.12"
+          )
+
+          # Filter builds based on profile
+          declare -a selected_builds=()
+
+          case "$profile" in
+            "default")
+              # Single default build for PRs
+              selected_builds+=("linux-sage2-pytorch28-cu129-python312|3.12|2.8.0|12.9|PyTorch 2.8.0 + CUDA 12.9 + Python 3.12")
+              ;;
+            "stable")
+              # Latest Python for each PyTorch version
+              selected_builds+=("linux-sage2-pytorch26-cu126-python312|3.12|2.6.0|12.6|PyTorch 2.6.0 + CUDA 12.6 + Python 3.12")
+              selected_builds+=("linux-sage2-pytorch27-cu128-python312|3.12|2.7.0|12.8|PyTorch 2.7.0 + CUDA 12.8 + Python 3.12")
+              selected_builds+=("linux-sage2-pytorch28-cu129-python312|3.12|2.8.0|12.9|PyTorch 2.8.0 + CUDA 12.9 + Python 3.12")
+              ;;
+            "pytorch26")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"pytorch26"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "pytorch27")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"pytorch27"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "pytorch28")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"pytorch28"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "python310")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"python310"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "python311")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"python311"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "python312")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"python312"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "sage2-all")
+              # All builds
+              selected_builds=("${all_builds[@]}")
+              ;;
+            *)
+              echo "Unknown profile: $profile"
+              exit 1
+              ;;
+          esac
+
+          # Convert to JSON matrix format
+          matrix_json="["
+          first=true
+          for build in "${selected_builds[@]}"; do
+            IFS='|' read -r target python pytorch cuda display <<< "$build"
+            if [ "$first" = true ]; then
+              first=false
+            else
+              matrix_json+=","
+            fi
+            matrix_json+="{\"target\":\"$target\",\"python\":\"$python\",\"pytorch\":\"$pytorch\",\"cuda\":\"$cuda\",\"display\":\"$display\"}"
+          done
+          matrix_json+="]"
+
+          echo "matrix={\"include\":$matrix_json}" >> $GITHUB_OUTPUT
+          echo "Build count: ${#selected_builds[@]}"
+          echo "$matrix_json" | jq .
+
+  # Job 3: Build wheels using Docker Bake
+  build-wheels:
+    needs: [validate, generate-matrix]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build wheel (${{ matrix.display }})
+        uses: docker/bake-action@v6
+        with:
+          files: docker-bake.hcl
+          targets: ${{ matrix.target }}
+          set: |
+            *.cache-from=type=gha,scope=build-${{ matrix.target }}
+            *.cache-to=type=gha,scope=build-${{ matrix.target }},mode=max
+          push: false
+
+      - name: Verify wheel naming
+        run: |
+          echo "=== Built wheels ==="
+          ls -lh dist/
+
+          # Verify PEP 427 compliant naming
+          for wheel in dist/*.whl; do
+            filename=$(basename "$wheel")
+            echo "Checking wheel: $filename"
+
+            # Expected pattern: sageattention-2.2.0-{torch}.{cuda}-cp{py}-cp{py}-linux_x86_64.whl
+            # Example: sageattention-2.2.0-280.129-cp312-cp312-linux_x86_64.whl
+            if [[ ! $filename =~ ^sageattention-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\.[0-9]+-cp[0-9]+-cp[0-9]+-linux_x86_64\.whl$ ]]; then
+              echo "❌ Wheel name does not match expected pattern: $filename"
+              exit 1
+            fi
+
+            # Extract version info from filename
+            if [[ $filename =~ sageattention-([0-9]+\.[0-9]+\.[0-9]+)-([0-9]+)\.([0-9]+)-cp([0-9]+) ]]; then
+              sage_version="${BASH_REMATCH[1]}"
+              torch_version="${BASH_REMATCH[2]}"
+              cuda_version="${BASH_REMATCH[3]}"
+              python_version="${BASH_REMATCH[4]}"
+
+              echo "  ✅ SageAttention version: $sage_version"
+              echo "  ✅ PyTorch version tag: $torch_version (2.$torch_version.0)"
+              echo "  ✅ CUDA version tag: $cuda_version (12.$cuda_version)"
+              echo "  ✅ Python version: $python_version (3.$python_version)"
+            fi
+          done
+
+      - name: Test wheel (${{ matrix.display }})
+        uses: docker/bake-action@v6
+        with:
+          files: docker-bake.hcl
+          targets: test-${{ matrix.target }}
+          set: |
+            *.cache-from=type=gha,scope=test-${{ matrix.target }}
+            *.cache-to=type=gha,scope=test-${{ matrix.target }},mode=max
+          push: false
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.target }}
+          path: ./dist/*.whl
+          retention-days: 7
+          compression-level: 0  # Wheels are already compressed
+
+  # Job 4: Build summary and validation
+  build-summary:
+    needs: [generate-matrix, build-wheels]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: ./all-wheels
+          merge-multiple: false
+
+      - name: Generate build summary
+        run: |
+          echo "## 🎯 SageAttention Build Matrix Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Profile:** ${{ needs.validate.outputs.build_profile }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | Python | PyTorch | CUDA | Wheel Name | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|---------|------|------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          total_wheels=0
+          success_count=0
+          fail_count=0
+
+          for artifact_dir in ./all-wheels/wheel-*; do
+            if [ -d "$artifact_dir" ]; then
+              target_name=$(basename "$artifact_dir" | sed 's/^wheel-//')
+              wheel_files=$(find "$artifact_dir" -name "*.whl")
+              wheel_count=$(echo "$wheel_files" | grep -c ".whl" || true)
+
+              if [ "$wheel_count" -gt 0 ]; then
+                wheel_name=$(basename $(echo "$wheel_files" | head -1))
+                status="✅"
+                ((success_count++))
+                total_wheels=$((total_wheels + wheel_count))
+
+                # Extract versions from filename
+                if [[ $wheel_name =~ sageattention-([0-9.]+)-([0-9]+)\.([0-9]+)-cp([0-9]+) ]]; then
+                  torch_ver="2.${BASH_REMATCH[2]}.0"
+                  cuda_ver="12.${BASH_REMATCH[3]}"
+                  python_ver="3.${BASH_REMATCH[4]}"
+
+                  echo "| \`$target_name\` | $python_ver | $torch_ver | $cuda_ver | \`$wheel_name\` | $status |" >> $GITHUB_STEP_SUMMARY
+                fi
+              else
+                status="❌"
+                ((fail_count++))
+                echo "| \`$target_name\` | - | - | - | - | $status |" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Build Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total wheels built:** $total_wheels" >> $GITHUB_STEP_SUMMARY
+          echo "- **Successful builds:** $success_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed builds:** $fail_count" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Wheel Naming Convention" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All wheels follow PEP 427 naming:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "sageattention-{version}-{torch}.{cuda}-cp{python}-cp{python}-linux_x86_64.whl" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Where:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`{version}\`: SageAttention version (e.g., 2.2.0)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`{torch}.{cuda}\`: Build tag with PyTorch minor + CUDA minor (e.g., 280.129 = PyTorch 2.8.0 + CUDA 12.9)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`{python}\`: Python version (e.g., cp312 = Python 3.12)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All wheels retain artifacts for 7 days." >> $GITHUB_STEP_SUMMARY
+
+      - name: Check build results
+        run: |
+          wheel_count=$(find ./all-wheels -name "*.whl" 2>/dev/null | wc -l)
+          if [ "$wheel_count" -eq 0 ]; then
+            echo "❌ No wheels were built successfully"
+            exit 1
+          else
+            echo "✅ Successfully built $wheel_count wheel(s)"
+          fi
+
+  # Job 5: Create GitHub Release (tags only)
+  release:
+    needs: [validate, build-summary]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: ./all-wheels
+          merge-multiple: true
+
+      - name: Prepare release
+        id: prep
+        run: |
+          mkdir -p dist
+          cp ./all-wheels/*.whl dist/ 2>/dev/null || true
+
+          wheel_count=$(ls -1 dist/*.whl 2>/dev/null | wc -l)
+          echo "wheel_count=$wheel_count" >> $GITHUB_OUTPUT
+
+          # Extract version from tag
+          version=${GITHUB_REF#refs/tags/v}
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+          echo "📦 Prepared $wheel_count wheels for release $version"
+          ls -lh dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "SageAttention ${{ steps.prep.outputs.version }}"
+          files: dist/*.whl
+          generate_release_notes: true
+          body: |
+            ## 📦 SageAttention Wheels - ${{ steps.prep.outputs.version }}
+
+            This release includes **${{ steps.prep.outputs.wheel_count }} pre-built wheels** for SageAttention.
+
+            ### 🎯 Supported Configurations
+            - **Python:** 3.9, 3.10, 3.11, 3.12
+            - **PyTorch:** 2.6.0, 2.7.0, 2.8.0
+            - **CUDA:** 12.6, 12.8, 12.9
+            - **GPU Architectures:** sm70-sm121 (V100 through Blackwell)
+
+            ### 📥 Installation
+            ```bash
+            # Install specific wheel for your environment
+            pip install sageattention-2.2.0-{pytorch}.{cuda}-cp{python}-cp{python}-linux_x86_64.whl
+
+            # Example: PyTorch 2.8.0 + CUDA 12.9 + Python 3.12
+            pip install sageattention-2.2.0-280.129-cp312-cp312-linux_x86_64.whl
+            ```
+
+            ### 🔧 Build Tag Format
+            Wheels use PEP 427 build tags: `{pytorch_minor}.{cuda_minor}`
+            - `260.126` = PyTorch 2.6.0 + CUDA 12.6
+            - `270.128` = PyTorch 2.7.0 + CUDA 12.8
+            - `280.129` = PyTorch 2.8.0 + CUDA 12.9
+
+            See [BUILD_MATRIX.md](https://github.com/${{ github.repository }}/blob/main/BUILD_MATRIX.md) for complete details.

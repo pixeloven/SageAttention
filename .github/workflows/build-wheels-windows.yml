@@ -1,0 +1,422 @@
+name: Build SageAttention Wheels (Windows)
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_profile:
+        description: 'Build profile to use'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable      # Latest Python for each PyTorch version (3 wheels)
+          - pytorch26   # All Python versions for PyTorch 2.6 (4 wheels)
+          - pytorch27   # All Python versions for PyTorch 2.7 (3 wheels)
+          - pytorch28   # All Python versions for PyTorch 2.8 (3 wheels)
+          - python310   # PyTorch 2.6-2.8 for Python 3.10 (3 wheels)
+          - python311   # PyTorch 2.6-2.8 for Python 3.11 (3 wheels)
+          - python312   # PyTorch 2.6-2.8 for Python 3.12 (3 wheels)
+          - sage2-all   # All SageAttention 2/2++ combinations (10 wheels)
+
+jobs:
+  # Job 1: Validate configuration
+  validate:
+    runs-on: windows-latest
+    outputs:
+      build_profile: ${{ steps.set-profile.outputs.profile }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set build profile
+        id: set-profile
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "profile=${{ inputs.build_profile }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "profile=sage2-all" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "profile=stable" >> $GITHUB_OUTPUT
+          else
+            echo "profile=default" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validation summary
+        run: |
+          echo "✅ Windows build configuration validated"
+          echo "📦 Build profile: ${{ steps.set-profile.outputs.profile }}"
+
+  # Job 2: Generate build matrix dynamically
+  generate-matrix:
+    needs: validate
+    runs-on: windows-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate build matrix
+        id: generate
+        run: |
+          profile="${{ needs.validate.outputs.build_profile }}"
+
+          # Define all possible Windows build configurations
+          # Format: display_name|python_version|pytorch_version|cuda_version
+          declare -a all_builds=(
+            # PyTorch 2.6 + CUDA 12.6
+            "PyTorch 2.6.0 + CUDA 12.6 + Python 3.9|3.9|2.6.0|12.6.1"
+            "PyTorch 2.6.0 + CUDA 12.6 + Python 3.10|3.10|2.6.0|12.6.1"
+            "PyTorch 2.6.0 + CUDA 12.6 + Python 3.11|3.11|2.6.0|12.6.1"
+            "PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|3.12|2.6.0|12.6.1"
+            # PyTorch 2.7 + CUDA 12.8
+            "PyTorch 2.7.0 + CUDA 12.8 + Python 3.10|3.10|2.7.0|12.8.1"
+            "PyTorch 2.7.0 + CUDA 12.8 + Python 3.11|3.11|2.7.0|12.8.1"
+            "PyTorch 2.7.0 + CUDA 12.8 + Python 3.12|3.12|2.7.0|12.8.1"
+            # PyTorch 2.8 + CUDA 12.9
+            "PyTorch 2.8.0 + CUDA 12.9 + Python 3.10|3.10|2.8.0|12.9.1"
+            "PyTorch 2.8.0 + CUDA 12.9 + Python 3.11|3.11|2.8.0|12.9.1"
+            "PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|3.12|2.8.0|12.9.1"
+          )
+
+          # Filter builds based on profile (same logic as Linux)
+          declare -a selected_builds=()
+
+          case "$profile" in
+            "default")
+              selected_builds+=("PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|3.12|2.8.0|12.9.1")
+              ;;
+            "stable")
+              selected_builds+=("PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|3.12|2.6.0|12.6.1")
+              selected_builds+=("PyTorch 2.7.0 + CUDA 12.8 + Python 3.12|3.12|2.7.0|12.8.1")
+              selected_builds+=("PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|3.12|2.8.0|12.9.1")
+              ;;
+            "pytorch26")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"2.6.0"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "pytorch27")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"2.7.0"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "pytorch28")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"2.8.0"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "python310")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"Python 3.10"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "python311")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"Python 3.11"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "python312")
+              for build in "${all_builds[@]}"; do
+                if [[ $build == *"Python 3.12"* ]]; then
+                  selected_builds+=("$build")
+                fi
+              done
+              ;;
+            "sage2-all")
+              selected_builds=("${all_builds[@]}")
+              ;;
+            *)
+              echo "Unknown profile: $profile"
+              exit 1
+              ;;
+          esac
+
+          # Convert to JSON matrix format
+          matrix_json="["
+          first=true
+          for build in "${selected_builds[@]}"; do
+            IFS='|' read -r display python pytorch cuda <<< "$build"
+            if [ "$first" = true ]; then
+              first=false
+            else
+              matrix_json+=","
+            fi
+            matrix_json+="{\"display\":\"$display\",\"python\":\"$python\",\"pytorch\":\"$pytorch\",\"cuda\":\"$cuda\"}"
+          done
+          matrix_json+="]"
+
+          echo "matrix={\"include\":$matrix_json}" >> $GITHUB_OUTPUT
+          echo "Build count: ${#selected_builds[@]}"
+          echo "$matrix_json" | jq .
+
+  # Job 3: Build wheels on Windows
+  build-wheels:
+    needs: [validate, generate-matrix]
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Setup CUDA Toolkit
+        # https://github.com/Jimver/cuda-toolkit/issues/395
+        uses: N-Storm/cuda-toolkit@v0.2.28
+        with:
+          cuda: ${{ matrix.cuda }}
+          use-github-cache: false
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure git for line endings
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Upgrade pip and install build tools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel packaging
+
+      - name: Install PyTorch ${{ matrix.pytorch }}
+        shell: powershell
+        run: |
+          $cuda_version = "${{ matrix.cuda }}"
+          $pytorch_version = "${{ matrix.pytorch }}"
+
+          # Map CUDA version to PyTorch index
+          if ($cuda_version -like "12.6*") {
+            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu126
+          } elseif ($cuda_version -like "12.8*") {
+            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu128
+          } else {
+            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu129
+          }
+
+      - name: Install build dependencies
+        run: |
+          pip install numpy packaging pybind11
+
+      - name: Set build environment variables
+        shell: powershell
+        run: |
+          # Extract version components for build tags
+          $pytorch = "${{ matrix.pytorch }}"
+          $cuda = "${{ matrix.cuda }}"
+
+          $torch_parts = $pytorch.Split('.')
+          $torch_minor = $torch_parts[1]
+          $cuda_parts = $cuda.Split('.')
+          $cuda_minor = $cuda_parts[1]
+
+          echo "TORCH_VERSION=$pytorch" >> $env:GITHUB_ENV
+          echo "CUDA_VERSION=$cuda" >> $env:GITHUB_ENV
+          echo "TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1" >> $env:GITHUB_ENV
+          echo "TORCH_MINOR_VERSION=$torch_minor" >> $env:GITHUB_ENV
+          echo "CUDA_MINOR_VERSION=$cuda_minor" >> $env:GITHUB_ENV
+
+      - name: Update pyproject.toml with PyTorch version
+        run: python update_pyproject.py
+
+      - name: Build wheel (${{ matrix.display }})
+        run: |
+          python setup.py bdist_wheel
+        env:
+          TORCH_VERSION: ${{ matrix.pytorch }}
+          CUDA_VERSION: ${{ matrix.cuda }}
+          TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
+
+      - name: Verify wheel naming
+        shell: bash
+        run: |
+          echo "=== Built wheels ==="
+          ls -lh dist/
+
+          # Verify PEP 427 compliant naming
+          for wheel in dist/*.whl; do
+            filename=$(basename "$wheel")
+            echo "Checking wheel: $filename"
+
+            # Expected pattern: sageattention-2.2.0-{torch}.{cuda}-cp{py}-cp{py}-win_amd64.whl
+            if [[ ! $filename =~ ^sageattention-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\.[0-9]+-cp[0-9]+-cp[0-9]+-win_amd64\.whl$ ]]; then
+              echo "❌ Wheel name does not match expected pattern: $filename"
+              exit 1
+            fi
+
+            # Extract version info from filename
+            if [[ $filename =~ sageattention-([0-9]+\.[0-9]+\.[0-9]+)-([0-9]+)\.([0-9]+)-cp([0-9]+) ]]; then
+              sage_version="${BASH_REMATCH[1]}"
+              torch_version="${BASH_REMATCH[2]}"
+              cuda_version="${BASH_REMATCH[3]}"
+              python_version="${BASH_REMATCH[4]}"
+
+              echo "  ✅ SageAttention version: $sage_version"
+              echo "  ✅ PyTorch version tag: $torch_version (2.$torch_version.0)"
+              echo "  ✅ CUDA version tag: $cuda_version (12.$cuda_version)"
+              echo "  ✅ Python version: $python_version (3.$python_version)"
+            fi
+          done
+
+      - name: Test wheel installation
+        shell: powershell
+        run: |
+          $wheels = Get-ChildItem -Path "dist" -Filter "*.whl"
+          if ($wheels.Count -eq 0) {
+            Write-Error "No wheels found in dist directory"
+            exit 1
+          }
+          pip install $wheels[0].FullName
+          python -c "import sageattention; print('✅ SageAttention imported successfully')"
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-windows-py${{ matrix.python }}-torch${{ matrix.pytorch }}-cuda${{ matrix.cuda }}
+          path: ./dist/*.whl
+          retention-days: 7
+          compression-level: 0
+
+  # Job 4: Build summary
+  build-summary:
+    needs: [generate-matrix, build-wheels]
+    runs-on: windows-latest
+    if: always()
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-windows-*
+          path: ./all-wheels
+          merge-multiple: false
+
+      - name: Generate build summary
+        shell: bash
+        run: |
+          echo "## 🪟 SageAttention Windows Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Profile:** ${{ needs.validate.outputs.build_profile }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Python | PyTorch | CUDA | Wheel Name | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|---------|------|------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          total_wheels=0
+          success_count=0
+          fail_count=0
+
+          for artifact_dir in ./all-wheels/wheel-windows-*; do
+            if [ -d "$artifact_dir" ]; then
+              wheel_files=$(find "$artifact_dir" -name "*.whl")
+              wheel_count=$(echo "$wheel_files" | grep -c ".whl" || true)
+
+              if [ "$wheel_count" -gt 0 ]; then
+                wheel_name=$(basename $(echo "$wheel_files" | head -1))
+                status="✅"
+                ((success_count++))
+                total_wheels=$((total_wheels + wheel_count))
+
+                # Extract versions from filename
+                if [[ $wheel_name =~ sageattention-([0-9.]+)-([0-9]+)\.([0-9]+)-cp([0-9]+) ]]; then
+                  torch_ver="2.${BASH_REMATCH[2]}.0"
+                  cuda_ver="12.${BASH_REMATCH[3]}"
+                  python_ver="3.${BASH_REMATCH[4]}"
+
+                  echo "| $python_ver | $torch_ver | $cuda_ver | \`$wheel_name\` | $status |" >> $GITHUB_STEP_SUMMARY
+                fi
+              else
+                status="❌"
+                ((fail_count++))
+              fi
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Build Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total wheels built:** $total_wheels" >> $GITHUB_STEP_SUMMARY
+          echo "- **Successful builds:** $success_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed builds:** $fail_count" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Windows Wheel Naming" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All wheels follow PEP 427 naming:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "sageattention-{version}-{torch}.{cuda}-cp{python}-cp{python}-win_amd64.whl" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check build results
+        shell: bash
+        run: |
+          wheel_count=$(find ./all-wheels -name "*.whl" 2>/dev/null | wc -l)
+          if [ "$wheel_count" -eq 0 ]; then
+            echo "❌ No wheels were built successfully"
+            exit 1
+          else
+            echo "✅ Successfully built $wheel_count wheel(s)"
+          fi
+
+  # Job 5: Create GitHub Release (tags only)
+  release:
+    needs: [validate, build-summary]
+    runs-on: windows-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-windows-*
+          path: ./all-wheels
+          merge-multiple: true
+
+      - name: Prepare release
+        id: prep
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp ./all-wheels/*.whl dist/ 2>/dev/null || true
+
+          wheel_count=$(ls -1 dist/*.whl 2>/dev/null | wc -l)
+          echo "wheel_count=$wheel_count" >> $GITHUB_OUTPUT
+
+          version=${GITHUB_REF#refs/tags/v}
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+          echo "📦 Prepared $wheel_count Windows wheels for release $version"
+          ls -lh dist/
+
+      - name: Upload to existing release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.whl
+          fail_on_unmatched_files: false
