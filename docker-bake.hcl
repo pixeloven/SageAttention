@@ -61,6 +61,7 @@ target "linux-sage2-pytorch27-cu128-python312" {
     PYTHON_VERSION = "3.12"
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST_CU128
     TORCH_VERSION = "2.7.0"
+    MAX_JOBS = "4"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
@@ -78,6 +79,7 @@ target "linux-sage2-pytorch28-cu129-python312" {
     PYTHON_VERSION = "3.12"
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST_CU129
     TORCH_VERSION = "2.8.0"
+    MAX_JOBS = "4"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]

@@ -58,9 +58,9 @@ RUN pip install --upgrade pip setuptools wheel packaging
 # Install PyTorch with caching optimization
 RUN --mount=type=cache,target=/root/.cache/pip \
     if [ "$CUDA_VERSION" = "12.8.1" ]; then \
-        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
+    pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
     else \
-        pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
+    pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
     fi
 
 # Stage 2: Builder - compiles SageAttention wheel (wheel stays embedded)
@@ -70,10 +70,12 @@ FROM runtime AS builder
 ARG TORCH_VERSION
 ARG PYTHON_VERSION
 ARG TORCH_CUDA_ARCH_LIST
+ARG MAX_JOBS
 
 # Set build environment variables
 ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
 ENV PYTHON_VERSION=${PYTHON_VERSION}
+ENV MAX_JOBS=${MAX_JOBS}
 
 # Verify build configuration
 RUN echo "Build Configuration:" && \
