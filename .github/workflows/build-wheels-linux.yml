@@ -119,6 +119,7 @@ jobs:
 
   # Job 3: Build wheels using Docker Bake
   build-wheels:
+    name: Build ${{ matrix.display }}
     needs: [validate, generate-matrix]
     runs-on: ubuntu-latest
     strategy:

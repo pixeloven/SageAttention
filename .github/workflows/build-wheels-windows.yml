@@ -110,6 +110,7 @@ jobs:
 
   # Job 3: Build wheels on Windows
   build-wheels:
+    name: Build ${{ matrix.display }}
     needs: [validate, generate-matrix]
     runs-on: windows-latest
     strategy:
