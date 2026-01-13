@@ -15,14 +15,8 @@ on:
         default: 'stable'
         type: choice
         options:
-          - stable      # Latest Python for each PyTorch version (3 wheels)
-          - pytorch26   # All Python versions for PyTorch 2.6 (4 wheels)
-          - pytorch27   # All Python versions for PyTorch 2.7 (3 wheels)
-          - pytorch28   # All Python versions for PyTorch 2.8 (3 wheels)
-          - python310   # PyTorch 2.6-2.8 for Python 3.10 (3 wheels)
-          - python311   # PyTorch 2.6-2.8 for Python 3.11 (3 wheels)
-          - python312   # PyTorch 2.6-2.8 for Python 3.12 (3 wheels)
-          - sage2-all   # All SageAttention 2/2++ combinations (10 wheels)
+          - stable      # Both PyTorch versions (2 wheels)
+          - sage2-all   # Same as stable (2 wheels)
 
 jobs:
   # Job 1: Validate configuration
@@ -69,21 +63,12 @@ jobs:
         run: |
           profile="${{ needs.validate.outputs.build_profile }}"
 
-          # Define all possible Windows build configurations
+          # Define all possible Windows build configurations (simplified to essential versions)
           # Format: display_name|python_version|pytorch_version|cuda_version
           declare -a all_builds=(
-            # PyTorch 2.6 + CUDA 12.6
-            "PyTorch 2.6.0 + CUDA 12.6 + Python 3.9|3.9|2.6.0|12.6.1"
-            "PyTorch 2.6.0 + CUDA 12.6 + Python 3.10|3.10|2.6.0|12.6.1"
-            "PyTorch 2.6.0 + CUDA 12.6 + Python 3.11|3.11|2.6.0|12.6.1"
-            "PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|3.12|2.6.0|12.6.1"
-            # PyTorch 2.7 + CUDA 12.8
-            "PyTorch 2.7.0 + CUDA 12.8 + Python 3.10|3.10|2.7.0|12.8.1"
-            "PyTorch 2.7.0 + CUDA 12.8 + Python 3.11|3.11|2.7.0|12.8.1"
+            # PyTorch 2.7 + CUDA 12.8 + Python 3.12
             "PyTorch 2.7.0 + CUDA 12.8 + Python 3.12|3.12|2.7.0|12.8.1"
-            # PyTorch 2.8 + CUDA 12.9
-            "PyTorch 2.8.0 + CUDA 12.9 + Python 3.10|3.10|2.8.0|12.9.1"
-            "PyTorch 2.8.0 + CUDA 12.9 + Python 3.11|3.11|2.8.0|12.9.1"
+            # PyTorch 2.8 + CUDA 12.9 + Python 3.12
             "PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|3.12|2.8.0|12.9.1"
           )
 
@@ -92,56 +77,11 @@ jobs:
 
           case "$profile" in
             "default")
+              # Single default build for PRs (latest)
               selected_builds+=("PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|3.12|2.8.0|12.9.1")
               ;;
-            "stable")
-              selected_builds+=("PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|3.12|2.6.0|12.6.1")
-              selected_builds+=("PyTorch 2.7.0 + CUDA 12.8 + Python 3.12|3.12|2.7.0|12.8.1")
-              selected_builds+=("PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|3.12|2.8.0|12.9.1")
-              ;;
-            "pytorch26")
-              for build in "${all_builds[@]}"; do
-                if [[ $build == *"2.6.0"* ]]; then
-                  selected_builds+=("$build")
-                fi
-              done
-              ;;
-            "pytorch27")
-              for build in "${all_builds[@]}"; do
-                if [[ $build == *"2.7.0"* ]]; then
-                  selected_builds+=("$build")
-                fi
-              done
-              ;;
-            "pytorch28")
-              for build in "${all_builds[@]}"; do
-                if [[ $build == *"2.8.0"* ]]; then
-                  selected_builds+=("$build")
-                fi
-              done
-              ;;
-            "python310")
-              for build in "${all_builds[@]}"; do
-                if [[ $build == *"Python 3.10"* ]]; then
-                  selected_builds+=("$build")
-                fi
-              done
-              ;;
-            "python311")
-              for build in "${all_builds[@]}"; do
-                if [[ $build == *"Python 3.11"* ]]; then
-                  selected_builds+=("$build")
-                fi
-              done
-              ;;
-            "python312")
-              for build in "${all_builds[@]}"; do
-                if [[ $build == *"Python 3.12"* ]]; then
-                  selected_builds+=("$build")
-                fi
-              done
-              ;;
-            "sage2-all")
+            "stable"|"sage2-all")
+              # All builds (both PyTorch versions)
               selected_builds=("${all_builds[@]}")
               ;;
             *)
