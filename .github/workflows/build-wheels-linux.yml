@@ -175,7 +175,7 @@ jobs:
           TORCH_VERSION: ${{ matrix.pytorch }}
           CUDA_VERSION: ${{ matrix.cuda }}
           TORCH_CUDA_ARCH_LIST: ${{ matrix.arch_list }}
-          MAX_JOBS: "4"
+          MAX_JOBS: "1"
 
       - name: Verify wheel naming
         shell: bash
