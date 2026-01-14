@@ -189,14 +189,13 @@ jobs:
 
       - name: Build wheel (${{ matrix.display }})
         run: |
-          python setup.py bdist_wheel
+          python setup.py bdist_wheel --build-number "${{ env.TORCH_MINOR_VERSION }}.${{ env.CUDA_MINOR_VERSION }}"
         env:
           TORCH_VERSION: ${{ matrix.pytorch }}
           CUDA_VERSION: ${{ matrix.cuda }}
           TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
           DISTUTILS_USE_SDK: "1"
           MAX_JOBS: "1"
-          SAGEATTENTION_WHEEL_VERSION_SUFFIX: "-${{ env.TORCH_MINOR_VERSION }}.${{ env.CUDA_MINOR_VERSION }}"
 
       - name: Verify wheel naming
         shell: bash

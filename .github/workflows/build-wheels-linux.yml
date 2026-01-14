@@ -172,11 +172,11 @@ jobs:
         run: |
           torch_minor=$(echo "${{ matrix.pytorch }}" | cut -d. -f2)
           cuda_minor=$(echo "${{ matrix.cuda }}" | cut -d. -f2)
-          echo "SAGEATTENTION_WHEEL_VERSION_SUFFIX=-${torch_minor}.${cuda_minor}" >> $GITHUB_ENV
+          echo "SAGEATTENTION_BUILD_TAG=${torch_minor}.${cuda_minor}" >> $GITHUB_ENV
       
       - name: Build wheel (${{ matrix.display }})
         run: |
-          python setup.py bdist_wheel
+          python setup.py bdist_wheel --build-number "${{ env.SAGEATTENTION_BUILD_TAG }}"
         env:
           TORCH_VERSION: ${{ matrix.pytorch }}
           CUDA_VERSION: ${{ matrix.cuda }}

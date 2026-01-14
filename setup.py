@@ -260,7 +260,7 @@ if not SKIP_CUDA_BUILD:
 
 setup(
     name='sageattention',
-    version='2.2.0' + os.environ.get("SAGEATTENTION_WHEEL_VERSION_SUFFIX", ""),
+    version='2.2.0',
     author='SageAttention team',
     license='Apache 2.0 License',
     description='Accurate and efficient plug-and-play low-bit attention.',
