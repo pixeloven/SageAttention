@@ -91,6 +91,13 @@ COPY . .
 # Update pyproject.toml with correct PyTorch version
 RUN python update_pyproject.py
 
+# Calculate version suffix for wheel name (e.g. -8.9 for torch 2.8 and cuda 12.9)
+RUN echo "Calculating version suffix..." && \
+    TORCH_MINOR=$(echo ${TORCH_VERSION} | cut -d. -f2) && \
+    CUDA_MINOR=$(echo ${CUDA_VERSION} | cut -d. -f2) && \
+    echo "Suffix: -${TORCH_MINOR}.${CUDA_MINOR}" && \
+    echo "SAGEATTENTION_WHEEL_VERSION_SUFFIX=-${TORCH_MINOR}.${CUDA_MINOR}" >> /etc/environment
+
 # Install build dependencies
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install numpy packaging pybind11 ninja
@@ -98,7 +105,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Build SageAttention wheel with cache mount for compilation artifacts
 RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/root/.cache/pip \
+    . /etc/environment && \
     CCACHE_DIR=/tmp/ccache \
+    SAGEATTENTION_WHEEL_VERSION_SUFFIX=${SAGEATTENTION_WHEEL_VERSION_SUFFIX} \
     python setup.py bdist_wheel
 
 # Stage 3: Wheel extraction - outputs ONLY wheel files with automatic version naming

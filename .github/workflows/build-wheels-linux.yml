@@ -167,6 +167,12 @@ jobs:
 
       - name: Update pyproject.toml with PyTorch version
         run: python update_pyproject.py
+
+      - name: Set build version suffix
+        run: |
+          torch_minor=$(echo "${{ matrix.pytorch }}" | cut -d. -f2)
+          cuda_minor=$(echo "${{ matrix.cuda }}" | cut -d. -f2)
+          echo "SAGEATTENTION_WHEEL_VERSION_SUFFIX=-${torch_minor}.${cuda_minor}" >> $GITHUB_ENV
       
       - name: Build wheel (${{ matrix.display }})
         run: |
