@@ -4,9 +4,9 @@ High-performance attention mechanisms for PyTorch with CUDA support.
 
 ## 🚀 Quick Start
 
-### Using Docker (Recommended)
+### Building Locally with Docker
 
-Build wheels with automatic version naming:
+Build wheels locally using Docker (useful for development):
 
 ```bash
 # Build specific configuration
@@ -97,7 +97,24 @@ Wheels are saved to the `./dist/` directory (git-ignored).
 
 ## 📦 CI/CD
 
-The GitHub Actions workflow automatically builds and tests wheels for all supported configurations using Docker Bake.
+The GitHub Actions workflow automatically builds and tests wheels for all supported configurations. Linux builds run natively on GitHub runners using `setup-python` and `cuda-toolkit` for maximum performance, while Windows builds use standard MSVC runners.
+
+## 🔧 Running CI Locally
+
+We use [act](https://github.com/nektos/act) to run GitHub Actions workflows locally.
+
+### Prerequisites
+1. Install [act](https://nektosact.com/installation/index.html).
+2. Ensure Docker is running.
+
+### Running Linux Build
+```bash
+# Run the full Linux build workflow
+gh act -W .github/workflows/build-wheels-linux.yml --container-architecture linux/amd64
+
+# Run specific job
+gh act -W .github/workflows/build-wheels-linux.yml -j build-wheels
+```
 
 ## 🏗️ Architecture
 

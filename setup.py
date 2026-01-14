@@ -195,6 +195,7 @@ if not SKIP_CUDA_BUILD:
                     "csrc/qattn/qk_int_sv_f8_cuda_sm90.cu",
                 ],
                 libraries=["cuda"],
+                library_dirs=[os.path.join(CUDA_HOME, "lib64", "stubs")],
                 extra_compile_args={
                     "cxx": CXX_FLAGS,
                     "nvcc": get_nvcc_flags(["9.0"]),
