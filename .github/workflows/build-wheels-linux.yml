@@ -35,8 +35,6 @@ jobs:
           # Always use the input provided by workflow_call or workflow_dispatch
           echo "profile=${{ inputs.build_profile }}" >> $GITHUB_OUTPUT
       
-      - name: Summary
-        run: echo "📦 Build profile ${{ steps.set-profile.outputs.profile }}"
 
   # Job 2: Generate build matrix dynamically
   generate-matrix:
@@ -56,10 +54,10 @@ jobs:
           # Define all possible build configurations
           # Format: python_version|pytorch_version|cuda_version|display_name|arch_list
           declare -a all_builds=(
-            # PyTorch 2.7 + CUDA 12.8 + Python 3.12 (Excludes 12.1 arch)
-            "3.12|2.7.0|12.8.1|PyTorch 2.7.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0"
-            # PyTorch 2.8 + CUDA 12.9 + Python 3.12 (Includes 12.1 arch)
-            "3.12|2.8.0|12.9.1|PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
+            # PyTorch 2.5.1 + CUDA 12.4 + Python 3.12 (Safe Stable)
+            "3.12|2.5.1|12.4.1|PyTorch 2.5.1 + CUDA 12.4 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0"
+            # PyTorch 2.6.0 + CUDA 12.6 + Python 3.12 (Latest Stable)
+            "3.12|2.6.0|12.6.1|PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
           )
 
           # Filter builds based on profile
@@ -67,8 +65,8 @@ jobs:
 
           case "$profile" in
             "default")
-              # Single default build for PRs (latest)
-              selected_builds+=("3.12|2.8.0|12.9.1|PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1")
+              # Single default build for PRs (Latest Stable)
+              selected_builds+=("3.12|2.6.0|12.6.1|PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1")
               ;;
             "stable"|"sage2-all")
               # All builds (both PyTorch versions)
@@ -147,13 +145,25 @@ jobs:
           cuda_version="${{ matrix.cuda }}"
           pytorch_version="${{ matrix.pytorch }}"
           
-          if [[ "$cuda_version" == "12.6"* ]]; then
-            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu126
-          elif [[ "$cuda_version" == "12.8"* ]]; then
-             pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu128
+          echo "DEBUG: Installing PyTorch. CUDA=$cuda_version, TORCH=$pytorch_version"
+          
+          # Construct index URL
+          if [[ "$cuda_version" == "12.4"* ]]; then
+            index_url="https://download.pytorch.org/whl/cu124"
+          elif [[ "$cuda_version" == "12.6"* ]]; then
+             index_url="https://download.pytorch.org/whl/cu126"
           else
-             pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu129
+             # Fallback for old/other versions
+             index_url="https://download.pytorch.org/whl/cu118"
           fi
+          
+          echo "DEBUG: Using index URL: $index_url"
+          echo "DEBUG: Command: pip install torch==$pytorch_version torchvision --index-url $index_url"
+          
+          pip install torch==$pytorch_version torchvision --index-url "$index_url"
+          
+          echo "DEBUG: Installed packages:"
+          pip list | grep torch
 
       - name: Install build dependencies
         run: |
@@ -207,14 +217,6 @@ jobs:
             fi
           done
 
-      - name: Test wheel installation
-        run: |
-          wheel=$(ls dist/*.whl | head -n 1)
-          pip install "$wheel"
-          # Change to dist directory to avoid importing sageattention from source
-          cd dist
-          python -c "import sageattention; print('✅ SageAttention imported successfully')"
-
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -223,18 +225,12 @@ jobs:
           retention-days: 7
           compression-level: 0
 
-  # Job 4: Build summary
-  build-summary:
-    needs: [configure, generate-matrix, build-wheels]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Test wheel installation
+        run: |
+          wheel=$(ls dist/*.whl | head -n 1)
+          pip install "$wheel"
+          # Change to dist directory to avoid importing sageattention from source
+          cd dist
+          python -c "import sageattention; print('✅ SageAttention imported successfully')"
 
-      - name: Generate Summary
-        uses: ./.github/actions/wheel-summary
-        with:
-          pattern: "wheel-linux-*"
-          platform_name: "🐧 Linux"
-          build_profile: ${{ needs.configure.outputs.build_profile }}
+

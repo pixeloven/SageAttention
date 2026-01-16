@@ -42,8 +42,8 @@ We enforce specific build tags to ensure wheels are strictly PEP 440 compliant w
 We provide pre-built wheels for the following configurations:
 
 | PyTorch | CUDA | Python | Platform |
-|---------|------|--------|----------|
-| 2.7.0   | 12.8 | 3.12   | Linux, Windows |
-| 2.8.0   | 12.9 | 3.12   | Linux, Windows |
+| :---: | :---: | :---: | :---: |
+| 2.5.1 | 12.4 | 3.12 | Linux, Windows |
+| 2.6.0 | 12.6 | 3.12 | Linux, Windows |
 
 *For other configurations, please build from source.*

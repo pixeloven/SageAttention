@@ -49,36 +49,36 @@ variable "TORCH_CUDA_ARCH_LIST_BLACKWELL" {
 
 # CI builds two wheels: PyTorch 2.7 + CUDA 12.8 (Py3.12) and PyTorch 2.8 + CUDA 12.9 (Py3.12).
 
-# ---------- PyTorch 2.7 + CUDA 12.8 ----------
+# ---------- PyTorch 2.5.1 + CUDA 12.4 ----------
 
-target "linux-sage2-pytorch27-cu128-python312" {
+target "linux-sage2-pytorch25-cu124-python312" {
   dockerfile = "dockerfile.builder.linux"
   target = "wheel"
   platforms = ["linux/amd64"]
   output = ["type=local,dest=./dist"]
   args = {
-    CUDA_VERSION = "12.8.1"
+    CUDA_VERSION = "12.4.1"
     PYTHON_VERSION = "3.12"
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST_CU128
-    TORCH_VERSION = "2.7.0"
+    TORCH_VERSION = "2.5.1"
     MAX_JOBS = "4"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
 }
 
-# ---------- PyTorch 2.8 + CUDA 12.9 ----------
+# ---------- PyTorch 2.6.0 + CUDA 12.6 ----------
 
-target "linux-sage2-pytorch28-cu129-python312" {
+target "linux-sage2-pytorch26-cu126-python312" {
   dockerfile = "dockerfile.builder.linux"
   target = "wheel"
   platforms = ["linux/amd64"]
   output = ["type=local,dest=./dist"]
   args = {
-    CUDA_VERSION = "12.9.1"
+    CUDA_VERSION = "12.6.1"
     PYTHON_VERSION = "3.12"
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST_CU129
-    TORCH_VERSION = "2.8.0"
+    TORCH_VERSION = "2.6.0"
     MAX_JOBS = "4"
   }
   cache-from = ["type=gha"]
@@ -110,29 +110,29 @@ target "linux-sage2-pytorch28-cu129-python312" {
 # Test Targets
 # ============================================================================
 
-target "test-linux-sage2-pytorch27-cu128-python312" {
+target "test-linux-sage2-pytorch25-cu124-python312" {
   dockerfile = "dockerfile.builder.linux"
   target = "test"
   platforms = ["linux/amd64"]
   args = {
-    CUDA_VERSION = "12.8.1"
+    CUDA_VERSION = "12.4.1"
     PYTHON_VERSION = "3.12"
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST_CU128
-    TORCH_VERSION = "2.7.0"
+    TORCH_VERSION = "2.5.1"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
 }
 
-target "test-linux-sage2-pytorch28-cu129-python312" {
+target "test-linux-sage2-pytorch26-cu126-python312" {
   dockerfile = "dockerfile.builder.linux"
   target = "test"
   platforms = ["linux/amd64"]
   args = {
-    CUDA_VERSION = "12.9.1"
+    CUDA_VERSION = "12.6.1"
     PYTHON_VERSION = "3.12"
     TORCH_CUDA_ARCH_LIST = TORCH_CUDA_ARCH_LIST_CU129
-    TORCH_VERSION = "2.8.0"
+    TORCH_VERSION = "2.6.0"
   }
   cache-from = ["type=gha"]
   cache-to = ["type=gha,mode=max"]
@@ -143,44 +143,44 @@ target "test-linux-sage2-pytorch28-cu129-python312" {
 # ============================================================================
 
 group "default" {
-  targets = ["linux-sage2-pytorch28-cu129-python312"]
+  targets = ["linux-sage2-pytorch26-cu126-python312"]
 }
 
 # CI-aligned builds (both wheels)
 group "sage2-all" {
   targets = [
-    "linux-sage2-pytorch27-cu128-python312",
-    "linux-sage2-pytorch28-cu129-python312",
+    "linux-sage2-pytorch25-cu124-python312",
+    "linux-sage2-pytorch26-cu126-python312",
   ]
 }
 
 # Latest stable combinations (same as CI)
 group "stable" {
   targets = [
-    "linux-sage2-pytorch27-cu128-python312",
-    "linux-sage2-pytorch28-cu129-python312",
+    "linux-sage2-pytorch25-cu124-python312",
+    "linux-sage2-pytorch26-cu126-python312",
   ]
 }
 
 # All tests
 group "test-all" {
   targets = [
-    "test-linux-sage2-pytorch27-cu128-python312",
-    "test-linux-sage2-pytorch28-cu129-python312",
+    "test-linux-sage2-pytorch25-cu124-python312",
+    "test-linux-sage2-pytorch26-cu126-python312",
   ]
 }
 
 # Legacy aliases (backward compatibility)
 group "linux" {
   targets = [
-    "linux-sage2-pytorch27-cu128-python312",
-    "linux-sage2-pytorch28-cu129-python312",
+    "linux-sage2-pytorch25-cu124-python312",
+    "linux-sage2-pytorch26-cu126-python312",
   ]
 }
 
 group "all" {
   targets = [
-    "linux-sage2-pytorch27-cu128-python312",
-    "linux-sage2-pytorch28-cu129-python312",
+    "linux-sage2-pytorch25-cu124-python312",
+    "linux-sage2-pytorch26-cu126-python312",
   ]
 }

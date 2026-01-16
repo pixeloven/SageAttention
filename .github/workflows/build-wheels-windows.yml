@@ -57,22 +57,22 @@ jobs:
         run: |
           profile="${{ needs.validate.outputs.build_profile }}"
 
-          # Define all possible Windows build configurations (simplified to essential versions)
-          # Format: display_name|python_version|pytorch_version|cuda_version
+          # Define all possible build configurations
+          # Format: python_version|pytorch_version|cuda_version|display_name|arch_list
           declare -a all_builds=(
-            # PyTorch 2.7 + CUDA 12.8 + Python 3.12
-            "PyTorch 2.7.0 + CUDA 12.8 + Python 3.12|3.12|2.7.0|12.8.1"
-            # PyTorch 2.8 + CUDA 12.9 + Python 3.12
-            "PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|3.12|2.8.0|12.9.1"
+            # PyTorch 2.5.1 + CUDA 12.4 + Python 3.12 (Safe Stable)
+            "3.12|2.5.1|12.4.1|PyTorch 2.5.1 + CUDA 12.4 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0"
+            # PyTorch 2.6.0 + CUDA 12.6 + Python 3.12 (Latest Stable)
+            "3.12|2.6.0|12.6.1|PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
           )
 
-          # Filter builds based on profile (same logic as Linux)
+          # Filter builds based on profile
           declare -a selected_builds=()
 
           case "$profile" in
             "default")
-              # Single default build for PRs (latest)
-              selected_builds+=("PyTorch 2.8.0 + CUDA 12.9 + Python 3.12|3.12|2.8.0|12.9.1")
+              # Single default build for PRs (Latest Stable)
+              selected_builds+=("3.12|2.6.0|12.6.1|PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1")
               ;;
             "stable"|"sage2-all")
               # All builds (both PyTorch versions)
@@ -88,13 +88,13 @@ jobs:
           matrix_json="["
           first=true
           for build in "${selected_builds[@]}"; do
-            IFS='|' read -r display python pytorch cuda <<< "$build"
+            IFS='|' read -r python pytorch cuda display arch_list <<< "$build"
             if [ "$first" = true ]; then
               first=false
             else
               matrix_json+=","
             fi
-            matrix_json+="{\"display\":\"$display\",\"python\":\"$python\",\"pytorch\":\"$pytorch\",\"cuda\":\"$cuda\"}"
+            matrix_json+="{\"python\":\"$python\",\"pytorch\":\"$pytorch\",\"cuda\":\"$cuda\",\"display\":\"$display\",\"arch_list\":\"$arch_list\"}"
           done
           matrix_json+="]"
 
@@ -102,8 +102,8 @@ jobs:
           echo "Build count: ${#selected_builds[@]}"
           echo "$matrix_json" | jq .
 
-  # Job 3: Build wheels on Windows
-  build-wheels:
+  # Job 2: Build wheels on Windows
+  build-windows:
     name: Build ${{ matrix.display }}
     needs: [validate, generate-matrix]
     runs-on: windows-latest
@@ -113,19 +113,17 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
-      - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@v6
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Setup CUDA Toolkit
-        # https://github.com/Jimver/cuda-toolkit/issues/395
-        uses: N-Storm/cuda-toolkit@v0.2.28
+      - name: Install CUDA Toolkit
+        uses: Jimver/cuda-toolkit@v0.2.21
         with:
           cuda: ${{ matrix.cuda }}
-          use-github-cache: false
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -141,20 +139,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel packaging
 
-      - name: Install PyTorch ${{ matrix.pytorch }}
-        shell: powershell
+      - name: Install PyTorch
+        shell: bash
         run: |
-          $cuda_version = "${{ matrix.cuda }}"
-          $pytorch_version = "${{ matrix.pytorch }}"
+          cuda_version="${{ matrix.cuda }}"
+          pytorch_version="${{ matrix.pytorch }}"
 
           # Map CUDA version to PyTorch index
-          if ($cuda_version -like "12.6*") {
+          if [[ "$cuda_version" == "12.4"* ]]; then
+            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu124
+          elif [[ "$cuda_version" == "12.6"* ]]; then
             pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu126
-          } elseif ($cuda_version -like "12.8*") {
-            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu128
-          } else {
-            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu129
-          }
+          else
+            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu118
+          fi
 
       - name: Install build dependencies
         run: |
@@ -242,19 +240,3 @@ jobs:
           path: ./dist/*.whl
           retention-days: 7
           compression-level: 0
-
-  # Job 4: Build summary
-  build-summary:
-    needs: [generate-matrix, build-wheels]
-    runs-on: windows-latest
-    if: always()
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Generate Summary
-        uses: ./.github/actions/wheel-summary
-        with:
-          pattern: "wheel-windows-*"
-          platform_name: "🪟 Windows"
-          build_profile: ${{ needs.validate.outputs.build_profile }}
