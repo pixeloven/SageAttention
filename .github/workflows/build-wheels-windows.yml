@@ -172,7 +172,7 @@ jobs:
 
           echo "TORCH_VERSION=$pytorch" >> $env:GITHUB_ENV
           echo "CUDA_VERSION=$cuda" >> $env:GITHUB_ENV
-          echo "TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1" >> $env:GITHUB_ENV
+          echo "TORCH_CUDA_ARCH_LIST=7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0" >> $env:GITHUB_ENV
           echo "TORCH_MINOR_VERSION=$torch_minor" >> $env:GITHUB_ENV
           echo "CUDA_MINOR_VERSION=$cuda_minor" >> $env:GITHUB_ENV
 
@@ -185,7 +185,7 @@ jobs:
         env:
           TORCH_VERSION: ${{ matrix.pytorch }}
           CUDA_VERSION: ${{ matrix.cuda }}
-          TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
+          TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
           DISTUTILS_USE_SDK: "1"
           MAX_JOBS: "1"
 
