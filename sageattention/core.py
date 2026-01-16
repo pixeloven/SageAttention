@@ -17,14 +17,23 @@ limitations under the License.
 import torch
 import torch.nn.functional as F
 
-from .triton.quant_per_block import per_block_int8 as per_block_int8_triton
-from .triton.quant_per_block_varlen import per_block_int8 as per_block_int8_varlen_triton
-from .triton.attn_qk_int8_per_block import forward as attn_false
-from .triton.attn_qk_int8_per_block_causal import forward as attn_true
-from .triton.attn_qk_int8_block_varlen import forward as attn_false_varlen
-from .triton.attn_qk_int8_per_block_causal_varlen import forward as attn_true_varlen
+try:
+    from .triton.quant_per_block import per_block_int8 as per_block_int8_triton
+    from .triton.quant_per_block_varlen import per_block_int8 as per_block_int8_varlen_triton
+    from .triton.attn_qk_int8_per_block import forward as attn_false
+    from .triton.attn_qk_int8_per_block_causal import forward as attn_true
+    from .triton.attn_qk_int8_block_varlen import forward as attn_false_varlen
+    from .triton.attn_qk_int8_per_block_causal_varlen import forward as attn_true_varlen
 
-from .triton.quant_per_thread import per_thread_int8 as per_thread_int8_triton
+    from .triton.quant_per_thread import per_thread_int8 as per_thread_int8_triton
+except ImportError:
+    per_block_int8_triton = None
+    per_block_int8_varlen_triton = None
+    attn_false = None
+    attn_true = None
+    attn_false_varlen = None
+    attn_true_varlen = None
+    per_thread_int8_triton = None
 
 try:
     from . import sm80_compile
@@ -535,6 +544,14 @@ def sageattn_qk_int8_pv_fp16_cuda(
     assert q.device == k.device == v.device, "All tensors must be on the same device."
     assert q.dtype == k.dtype == v.dtype, "All tensors must have the same dtype."
 
+    if qk_quant_gran == "per_thread" and per_thread_int8_triton is None:
+        warnings.warn("Triton is not available, falling back to 'per_warp' quantization.")
+        qk_quant_gran = "per_warp"
+
+    if qk_quant_gran == "per_thread" and per_thread_int8_triton is None:
+        warnings.warn("Triton is not available, falling back to 'per_warp' quantization.")
+        qk_quant_gran = "per_warp"
+
     _tensor_layout = 0 if tensor_layout == "NHD" else 1
     _is_caual = 1 if is_causal else 0
     _qk_quant_gran = 3 if qk_quant_gran == "per_thread" else 2
@@ -711,6 +728,10 @@ def sageattn_qk_int8_pv_fp8_cuda(
     assert q.device == k.device == v.device, "All tensors must be on the same device."
     assert q.dtype == k.dtype == v.dtype, "All tensors must have the same dtype."
 
+    if qk_quant_gran == "per_thread" and per_thread_int8_triton is None:
+        warnings.warn("Triton is not available, falling back to 'per_warp' quantization.")
+        qk_quant_gran = "per_warp"
+
     _tensor_layout = 0 if tensor_layout == "NHD" else 1
     _is_caual = 1 if is_causal else 0
     _qk_quant_gran = 3 if qk_quant_gran == "per_thread" else 2
@@ -884,6 +905,10 @@ def sageattn_qk_int8_pv_fp8_cuda_sm90(
     assert qk_quant_gran in ["per_warp", "per_thread"], "qk_quant_gran must be either 'per_warp' or 'per_thread'."
     assert q.device == k.device == v.device, "All tensors must be on the same device."
     assert q.dtype == k.dtype == v.dtype, "All tensors must have the same dtype."
+
+    if qk_quant_gran == "per_thread" and per_thread_int8_triton is None:
+        warnings.warn("Triton is not available, falling back to 'per_warp' quantization.")
+        qk_quant_gran = "per_warp"
 
     _tensor_layout = 0 if tensor_layout == "NHD" else 1
     _is_caual = 1 if is_causal else 0

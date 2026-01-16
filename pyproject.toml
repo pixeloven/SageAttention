@@ -32,6 +32,11 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+dependencies = [
+    "torch",
+    "numpy",
+    "triton; platform_system == 'Linux'",
+]
 
 [project.urls]
 Homepage = "https://github.com/thu-ml/SageAttention"
