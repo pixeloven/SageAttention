@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Determine which profile to run based on event type
+  strategy:
+    runs-on: ubuntu-latest
+    outputs:
+      profile: ${{ steps.profile.outputs.profile }}
+    steps:
+      - id: profile
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "profile=default" >> $GITHUB_OUTPUT
+            echo "Event is PR: Using 'default' profile (fast build)"
+          else
+            echo "profile=stable" >> $GITHUB_OUTPUT
+            echo "Event is Push to Main: Using 'stable' profile (full build)"
+          fi
+
+  # Call Linux Build (Reusable)
+  build-linux:
+    needs: strategy
+    uses: ./.github/workflows/build-wheels-linux.yml
+    with:
+      build_profile: ${{ needs.strategy.outputs.profile }}
+
+  # Call Windows Build (Reusable)
+  build-windows:
+    needs: strategy
+    uses: ./.github/workflows/build-wheels-windows.yml
+    with:
+      build_profile: ${{ needs.strategy.outputs.profile }}

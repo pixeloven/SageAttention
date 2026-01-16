@@ -1,0 +1,59 @@
+name: 'Wheel Build Summary'
+description: 'Downloads wheels and generates a concise summary'
+inputs:
+  pattern:
+    description: 'Artifact pattern to download (e.g., wheel-linux-*)'
+    required: true
+  platform_name:
+    description: 'Display name for the platform (e.g., Linux)'
+    required: true
+  build_profile:
+    description: 'Build profile name'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download all wheel artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: ${{ inputs.pattern }}
+        path: ./all-wheels
+        merge-multiple: false
+
+    - name: Generate build summary
+      shell: bash
+      run: |
+        echo "## ${{ inputs.platform_name }} Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "**Profile:** \`${{ inputs.build_profile }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "| Status | Wheel Artifact |" >> $GITHUB_STEP_SUMMARY
+        echo "|:------:|----------------|" >> $GITHUB_STEP_SUMMARY
+
+        success_count=0
+
+        if [ -d "./all-wheels" ]; then
+          # Find all whl files recursively
+          find ./all-wheels -name "*.whl" | sort | while read -r file; do
+             filename=$(basename "$file")
+             echo "| ✅ | \`$filename\` |" >> $GITHUB_STEP_SUMMARY
+             ((success_count++))
+          done
+        fi
+        
+        # Check if we found any wheels
+        # Note: We can't easily export variables from a pipe subshell in bash, 
+        # so we recount for the failure check below.
+        
+    - name: Verify artifacts
+      shell: bash
+      run: |
+        count=$(find ./all-wheels -name "*.whl" 2>/dev/null | wc -l)
+        if [ "$count" -eq 0 ]; then
+           echo "❌ No wheels found! Build likely failed."
+           echo "❌ **No wheels found!**" >> $GITHUB_STEP_SUMMARY
+           exit 1
+        else
+           echo "✅ Found $count wheel(s)."
+        fi

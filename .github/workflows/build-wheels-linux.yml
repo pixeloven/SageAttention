@@ -1,12 +1,13 @@
 name: Build SageAttention Wheels (Linux)
 
 on:
-  push:
-    branches: [main]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [main]
+  workflow_call:
+    inputs:
+      build_profile:
+        description: 'Build profile to use'
+        required: true
+        default: 'stable'
+        type: string
   workflow_dispatch:
     inputs:
       build_profile:
@@ -31,15 +32,8 @@ jobs:
       - name: Set build profile
         id: set-profile
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "profile=${{ inputs.build_profile }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "profile=sage2-all" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "profile=stable" >> $GITHUB_OUTPUT
-          else
-            echo "profile=default" >> $GITHUB_OUTPUT
-          fi
+          # Always use the input provided by workflow_call or workflow_dispatch
+          echo "profile=${{ inputs.build_profile }}" >> $GITHUB_OUTPUT
       
       - name: Summary
         run: echo "📦 Build profile ${{ steps.set-profile.outputs.profile }}"
@@ -235,104 +229,12 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Download all wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: wheel-linux-*
-          path: ./all-wheels
-          merge-multiple: false
-
-      - name: Generate build summary
-        run: |
-          echo "## 🐧 SageAttention Linux Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Build Profile:** ${{ needs.configure.outputs.build_profile }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Python | PyTorch | CUDA | Wheel Name | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|---------|------|------------|--------|" >> $GITHUB_STEP_SUMMARY
-
-          total_wheels=0
-          success_count=0
-          fail_count=0
-
-          for artifact_dir in ./all-wheels/wheel-linux-*; do
-            if [ -d "$artifact_dir" ]; then
-              wheel_files=$(find "$artifact_dir" -name "*.whl")
-              wheel_count=$(echo "$wheel_files" | grep -c ".whl" || true)
-
-              if [ "$wheel_count" -gt 0 ]; then
-                wheel_name=$(basename $(echo "$wheel_files" | head -1))
-                status="✅"
-                ((success_count++))
-                total_wheels=$((total_wheels + wheel_count))
-
-                if [[ $wheel_name =~ sageattention-([0-9.]+)-([0-9]+)\.([0-9]+)-cp([0-9]+) ]]; then
-                  torch_ver="2.${BASH_REMATCH[2]}.0"
-                  cuda_ver="12.${BASH_REMATCH[3]}"
-                  python_ver="3.${BASH_REMATCH[4]}"
-
-                  echo "| $python_ver | $torch_ver | $cuda_ver | \`$wheel_name\` | $status |" >> $GITHUB_STEP_SUMMARY
-                fi
-              else
-                status="❌"
-                ((fail_count++))
-              fi
-            fi
-          done
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📊 Build Statistics" >> $GITHUB_STEP_SUMMARY
-          echo "- **Total wheels built:** $total_wheels" >> $GITHUB_STEP_SUMMARY
-          echo "- **Successful builds:** $success_count" >> $GITHUB_STEP_SUMMARY
-
-      - name: Check build results
-        run: |
-          if [ ! -d "./all-wheels" ]; then
-             echo "❌ No wheels downloaded. Build might have failed completely."
-             exit 1
-          fi
-          wheel_count=$(find ./all-wheels -name "*.whl" 2>/dev/null | wc -l)
-          if [ "$wheel_count" -eq 0 ]; then
-            echo "❌ No wheels were built successfully"
-            exit 1
-          else
-            echo "✅ Successfully built $wheel_count wheel(s)"
-          fi
-
-  # Job 5: Create GitHub Release (tags only)
-  release:
-    needs: [configure, build-summary]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-    steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download all wheels
-        uses: actions/download-artifact@v4
+      - name: Generate Summary
+        uses: ./.github/actions/wheel-summary
         with:
-          pattern: wheel-linux-*
-          path: ./all-wheels
-          merge-multiple: true
-
-      - name: Prepare release
-        id: prep
-        run: |
-          mkdir -p dist
-          cp ./all-wheels/*.whl dist/ 2>/dev/null || true
-          wheel_count=$(ls -1 dist/*.whl 2>/dev/null | wc -l)
-          echo "wheel_count=$wheel_count" >> $GITHUB_OUTPUT
-          version=${GITHUB_REF#refs/tags/v}
-          echo "version=$version" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "SageAttention ${{ steps.prep.outputs.version }}"
-          files: dist/*.whl
-          generate_release_notes: true
-          body: |
-            ## 📦 SageAttention Linux Wheels - ${{ steps.prep.outputs.version }}
-            Includes **${{ steps.prep.outputs.wheel_count }} pre-built wheels**.
+          pattern: "wheel-linux-*"
+          platform_name: "🐧 Linux"
+          build_profile: ${{ needs.configure.outputs.build_profile }}

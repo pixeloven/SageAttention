@@ -1,0 +1,78 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # 1. Build Linux Wheels (Reusable Workflow)
+  build-linux:
+    uses: ./.github/workflows/build-wheels-linux.yml
+    with:
+      build_profile: sage2-all
+
+  # 2. Build Windows Wheels (Reusable Workflow)
+  build-windows:
+    uses: ./.github/workflows/build-wheels-windows.yml
+    with:
+      build_profile: sage2-all
+
+  # 3. Create Unified Release
+  publish:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Download Linux Wheels
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-linux-*
+          path: ./dist
+          merge-multiple: true
+
+      # Download Windows Wheels
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-windows-*
+          path: ./dist
+          merge-multiple: true
+
+      - name: List all assets
+        run: |
+          echo "📦 Collected assets for release:"
+          ls -lh dist/
+
+      - name: Extract Release Version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "SageAttention ${{ steps.version.outputs.version }}"
+          files: dist/*.whl
+          generate_release_notes: true
+          body: |
+            ## 📦 SageAttention Wheels - ${{ steps.version.outputs.version }}
+            
+            This release includes pre-built wheels for **Linux and Windows**.
+            
+            ### 🛠️ Compatibility
+            | OS | Python | PyTorch | CUDA |
+            |----|--------|---------|------|
+            | 🐧 Linux | 3.12 | 2.7, 2.8 | 12.8, 12.9 |
+            | 🪟 Windows | 3.12 | 2.7, 2.8 | 12.8, 12.9 |
+
+            ### 💻/ Installation
+            ```bash
+            pip install sageattention
+            ```
+            
+            > **Note**: For Windows users, no extra steps are required. The package automatically handles missing Triton by falling back to CUDA kernels.
