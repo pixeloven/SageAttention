@@ -228,7 +228,18 @@ jobs:
       - name: Test wheel installation
         run: |
           wheel=$(ls dist/*.whl | head -n 1)
-          pip install "$wheel"
+          
+          # Re-determine index URL to avoid pip downgrading torch to PyPI version
+          cuda_version="${{ matrix.cuda }}"
+          if [[ "$cuda_version" == "12.8"* ]]; then
+             index_url="https://download.pytorch.org/whl/cu126"
+          else
+             index_url="https://download.pytorch.org/whl/cu118"
+          fi
+          
+          echo "Installing wheel with index: $index_url"
+          pip install "$wheel" --index-url "$index_url"
+          
           # Change to dist directory to avoid importing sageattention from source
           cd dist
           python -c "import sageattention; print('✅ SageAttention imported successfully')"

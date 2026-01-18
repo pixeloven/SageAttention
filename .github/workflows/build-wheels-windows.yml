@@ -221,14 +221,22 @@ jobs:
           done
 
       - name: Test wheel installation
-        shell: powershell
+        shell: bash
         run: |
-          $wheels = Get-ChildItem -Path "dist" -Filter "*.whl"
-          if ($wheels.Count -eq 0) {
-            Write-Error "No wheels found in dist directory"
-            exit 1
-          }
-          pip install $wheels[0].FullName
+          # Re-determine index URL
+          cuda_version="${{ matrix.cuda }}"
+          if [[ "$cuda_version" == "12.8"* ]]; then
+             index_url="https://download.pytorch.org/whl/cu126"
+          else
+             index_url="https://download.pytorch.org/whl/cu118"
+          fi
+          
+          # Find wheel
+          wheel=$(ls dist/*.whl | head -n 1)
+          
+          echo "Installing $wheel with index $index_url"
+          pip install "$wheel" --index-url "$index_url"
+          
           # Change to dist directory to avoid importing sageattention from source
           cd dist
           python -c "import sageattention; print('✅ SageAttention imported successfully')"
