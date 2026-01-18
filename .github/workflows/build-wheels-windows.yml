@@ -59,12 +59,14 @@ jobs:
 
           # Define all possible build configurations
           # Format: python_version|pytorch_version|cuda_version|display_name|arch_list
+          declare -a all_builds=(
             # PyTorch 2.7.0 + CUDA 12.8 + Python 3.12
             "3.12|2.7.0|12.8.0|PyTorch 2.7.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
             # PyTorch 2.8.0 + CUDA 12.8 + Python 3.12
             "3.12|2.8.0|12.8.0|PyTorch 2.8.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
             # PyTorch 2.9.0 + CUDA 12.8 + Python 3.12
             "3.12|2.9.0|12.8.0|PyTorch 2.9.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
+          )
 
           # Filter builds based on profile
           declare -a selected_builds=()
