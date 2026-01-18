@@ -56,8 +56,8 @@ jobs:
           declare -a all_builds=(
             # PyTorch 2.5.1 + CUDA 12.4 + Python 3.12 (Safe Stable)
             "3.12|2.5.1|12.4.1|PyTorch 2.5.1 + CUDA 12.4 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
-            # PyTorch 2.6.0 + CUDA 12.6 + Python 3.12 (Latest Stable)
-            "3.12|2.6.0|12.6.1|PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
+            # PyTorch 2.6.0 + CUDA 12.8 + Python 3.12 (Latest Stable)
+            "3.12|2.6.0|12.8.0|PyTorch 2.6.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
           )
 
           # Filter builds based on profile
@@ -66,7 +66,7 @@ jobs:
           case "$profile" in
             "default")
               # Single default build for PRs (Latest Stable)
-              selected_builds+=("3.12|2.6.0|12.6.1|PyTorch 2.6.0 + CUDA 12.6 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0")
+              selected_builds+=("3.12|2.6.0|12.8.0|PyTorch 2.6.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0")
               ;;
             "stable"|"sage2-all")
               # All builds (both PyTorch versions)
@@ -126,7 +126,7 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Setup CUDA Toolkit
-        uses: N-Storm/cuda-toolkit@v0.2.28
+        uses: Jimver/cuda-toolkit@v0.2.30
         with:
           cuda: ${{ matrix.cuda }}
           use-github-cache: false
@@ -150,7 +150,7 @@ jobs:
           # Construct index URL
           if [[ "$cuda_version" == "12.4"* ]]; then
             index_url="https://download.pytorch.org/whl/cu124"
-          elif [[ "$cuda_version" == "12.6"* ]]; then
+          elif [[ "$cuda_version" == "12.8"* ]]; then
              index_url="https://download.pytorch.org/whl/cu126"
           else
              # Fallback for old/other versions
