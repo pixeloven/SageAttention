@@ -126,6 +126,7 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.30
         with:
           cuda: ${{ matrix.cuda }}
+          log-file-suffix: "log-windows-py${{ matrix.python }}-torch${{ matrix.pytorch }}.txt"
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
