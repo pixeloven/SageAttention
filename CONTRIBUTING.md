@@ -24,26 +24,25 @@ You can run the CI workflows locally using [`act`](https://nektosact.com/install
 gh act -W .github/workflows/build-wheels-linux.yml --container-architecture linux/amd64
 ```
 
-## 📦 CI/CD & Standards
+## 📦 Releases
+
+We provide pre-built wheels for Linux and Windows for the following configurations:
+
+| PyTorch | CUDA | Python | Platform |
+| :---: | :---: | :---: | :---: |
+| 2.7.0 | 12.8 | 3.12 | Linux, Windows |
+| 2.8.0 | 12.8 | 3.12 | Linux, Windows |
+| 2.9.0 | 12.8 | 3.12 | Linux, Windows |
 
 ### Wheel Naming Convention
 We enforce specific build tags to ensure wheels are strictly PEP 440 compliant while carrying dependency metadata:
 *   **Format**: `sageattention-{version}-{build_tag}-...`
-*   **Example**: `sageattention-2.2.0-8.9-cp312-cp312-linux_x86_64.whl`
-    *   `8.9` represents **PyTorch 2.8** + **CUDA 12.9**.
-    *   This prevents `InvalidVersion` errors during installation.
+*   **Example**: `sageattention-2.2.0-280.128-cp312-cp312-linux_x86_64.whl`
+    *   `280.128` represents **PyTorch 2.8** + **CUDA 12.8**.
+    *   Format: `{torch_major}{torch_minor}{torch_patch}.{cuda_major}{cuda_minor}`.
 
-### Workflows
+### CI/CD Implementation
+Our release process is automated via GitHub Actions, which orchestrates the build and verification of these artifacts.
 *   **`build-wheels-linux.yml`**: Uses `setup-python` and native runners for speed.
 *   **`build-wheels-windows.yml`**: Uses MSVC runners.
-*   Both workflows verify the generated wheels by installing them and running a basic import check.
-
-## 📦 Pre-built Wheels
-We provide pre-built wheels for the following configurations:
-
-| PyTorch | CUDA | Python | Platform |
-| :---: | :---: | :---: | :---: |
-| 2.5.1 | 12.4 | 3.12 | Linux, Windows |
-| 2.6.0 | 12.6 | 3.12 | Linux, Windows |
-
-*For other configurations, please build from source.*
+*   **Verification**: Both workflows verify the generated wheels by installing them and running a basic import check.
