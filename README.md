@@ -1,22 +1,21 @@
+> **Note:** This is a fork with minimal changes to the original project, focused on providing a seamless installation experience. Our emphasis is on facilitating the use of pre-compiled wheels—available for both Windows and Linux in the Releases section—and providing an easy-to-use Docker compilation process for local Linux builds. For development guides, wheel compatibility, and build instructions, please see  [CONTRIBUTING.md](CONTRIBUTING.md).
+
 # SageAttention
-
-> **Note:** This is a fork with enhanced **System Support** and **CI/CD** in an effort to make it easier to build and install. For development guides, pre-built wheels matrix, Docker build instructions, and contribution standards, please see [CONTRIBUTING.md](CONTRIBUTING.md).
-
 <!-- We are continuously updating more features. You could **Star** and **Watch** our repository to stay updated.
 
 --- -->
 This repository provides the official implementation of SageAttention, SageAttention2, and SageAttention2++, which achieve surprising speedup on most GPUs without lossing accuracy across all models in a plug-and-play way.
 
 **SageAttention: Accurate 8-Bit Attention for Plug-and-play Inference Acceleration**  
-Jintao Zhang, Jia Wei, Haofeng Huang, Pengle Zhang, Jun Zhu, Jianfei Chen
+Jintao Zhang, Jia Wei, Haofeng Huang, Pengle Zhang, Jun Zhu, Jianfei Chen  
 Paper: https://arxiv.org/abs/2410.02367
 
 **SageAttention2: Efficient Attention with Thorough Outlier Smoothing and Per-thread INT4 Quantization**  
-Jintao Zhang, Haofeng Huang, Pengle Zhang, Jia Wei, Jun Zhu, Jianfei Chen
+Jintao Zhang, Haofeng Huang, Pengle Zhang, Jia Wei, Jun Zhu, Jianfei Chen  
 Paper: https://arxiv.org/abs/2411.10958
 
 **SageAttention3: Microscaling FP4 Attention for Inference and An Exploration of 8-Bit Training**  
-Jintao Zhang, Jia Wei, Haoxu Wang, Pengle Zhang, Xiaoming Xu, Haofeng Huang, Kai Jiang, Jun Zhu, Jianfei Chen
+Jintao Zhang, Jia Wei, Haoxu Wang, Pengle Zhang, Xiaoming Xu, Haofeng Huang, Kai Jiang, Jianfei Chen, Jun Zhu  
 Paper: https://arxiv.org/abs/2505.11594
 
 
@@ -67,7 +66,6 @@ Paper: https://arxiv.org/abs/2505.11594
 - [2024-11-12]: Support for `sageattn_varlen` is available now.
 - [2024-11-11]: Support for different sequence lengths between `q` and `k,v`,  `(batch_size, head_num, seq_len, head_dim)` or `(batch_size, seq_len, head_num, head_dim)` input shapes, and `group-query attention` is available now.
 
-The latest wheels support GTX 16xx, RTX 20xx/30xx/40xx/50xx, V100, A100, H100, AGX Orin (sm70/75/80/86/87/89/90/120). There are also reports that it works with B200 (sm100) and DGX Spark (sm121), but I did not bundle these kernels in the wheels, and you need to build from source.
 
 ## Installation
 ### Base environment
@@ -165,50 +163,59 @@ We provide a benchmarking script to compare the speed of different kernels inclu
 
 ![Local Image](./assets/4090_hd128.png)
 
-1. Know how to use pip to install packages in the correct Python environment, see https://github.com/woct0rdho/triton-windows
-2. Install triton-windows
-3. Install a wheel in the release page: https://github.com/woct0rdho/SageAttention/releases
-    * Unlike triton-windows, you need to manually choose a wheel in the GitHub release page for SageAttention
-    * Choose the wheel for your PyTorch version. For example, 'torch2.7.0' in the filename
-        * The torch minor version (2.6/2.7 ...) must be correct, but the patch version (2.7.0/2.7.1 ...) can be different from yours
-    * No need to worry about the CUDA minor version (12.8/12.9 ...). It can be different from yours, because SageAttention does not yet use any breaking API
-        * But there is a difference between CUDA 12 and 13
-    * No need to worry about the Python minor version (3.10/3.11 ...). The recent wheels use Python Stable ABI (also known as ABI3) and have `cp39-abi3` in the filenames, so they support Python >= 3.9
+![Local Image](./assets/L20_hd128.png)
 
-If you see any error, please open an issue at https://github.com/woct0rdho/SageAttention/issues
+![Local Image](./assets/H100_hd128.png)
 
-Recently we've simplified the installation by a lot. There is no need to install Visual Studio or CUDA toolkit to use Triton and SageAttention (unless you want to step into the world of building from source)
+![Local Image](./assets/H20_hd128.png)
 
-## Use notes
+![Local Image](./assets/A100_hd128.png)
 
-Before using SageAttention in larger projects like ComfyUI, please run [test_sageattn.py](https://github.com/woct0rdho/SageAttention/blob/main/tests/test_sageattn.py) to test if SageAttention itself works.
+![Local Image](./assets/3090_hd128.png)
 
-To use SageAttention in ComfyUI, you just need to add `--use-sage-attention` when starting ComfyUI.
+> **Note:** The TOPS results refer only to the Attention Kernel, excluding the quantization and smoothing.
 
-Some recent models, such as Wan and Qwen-Image, may produce black or noise output when SageAttention is used, because some intermediate values overflow SageAttention's quantization. In this case, you may use the `PatchSageAttentionKJ` node in KJNodes, and choose `sageattn_qk_int8_pv_fp16_cuda`, which is the least likely to overflow.
+### End-to-end Performance
+#### **End-to-End Accuracy:**
 
-Also, if you want to run Flux or Qwen-Image, try [Nunchaku](https://github.com/mit-han-lab/ComfyUI-nunchaku) if you haven't. It's faster and more accurate than GGUF Q4_0 + SageAttention.
+![Local Image](./assets/22.png)
 
-If you want to run Wan, try [RadialAttention](https://github.com/woct0rdho/ComfyUI-RadialAttn) if you haven't. It's also faster than SageAttention.
+![Local Image](./assets/23.png)
 
-## Build from source
+![Local Image](./assets/24.png)
 
-(This is for developers)
+![Local Image](./assets/25.png)
 
-If you need to build and run SageAttention on your own machine:
-1. Install Visual Studio (MSVC and Windows SDK), and CUDA toolkit
-2. Clone this repo
-   * Checkout `abi3_stable` branch if you want ABI3 and libtorch stable ABI, which supports PyTorch >= 2.9
-   * Checkout `abi3` branch if you want ABI3, which supports PyTorch >= 2.4
-   * The purpose of ABI3 and libtorch stable ABI is to avoid building many wheels. There is no functional difference from the main branch
-4. Install the dependencies in [`pyproject.toml`](https://github.com/woct0rdho/SageAttention/blob/main/pyproject.toml), including the desired torch version such as `torch 2.7.1+cu128`
-5. Run `python setup.py install --verbose` to install directly, or `python setup.py bdist_wheel --verbose` to build a wheel. This avoids the environment checks of pip
+#### **End-to-End Speedup:**
 
-## Dev notes
+![Local Image](./assets/26.png)
+*Note: SageAttention2++ achieves higher speed.*
 
-* The wheels are built using the [workflow](https://github.com/woct0rdho/SageAttention/blob/main/.github/workflows/build-sageattn.yml)
-    * It's tricky to specify both torch (with index URL at download.pytorch.org ) and pybind11 (not in that index URL) in an isolated build environment. The easiest way I could think of is to use [simpleindex](https://github.com/uranusjr/simpleindex)
-* CUDA kernels for sm80/89/90 are bundled in the wheels, and also sm120 for CUDA >= 12.8
-* For RTX 20xx, SageAttention 2 runs Triton kernels, which are the same as SageAttention 1. If you want to help improve the CUDA kernels for RTX 20xx, you may see https://github.com/Ph0rk0z/SageAttention2/tree/updates
-* The wheels do not use CXX11 ABI
-* We cannot publish the wheels to PyPI, because PyPI does not support multiple PyTorch/CUDA variants for the same version of SageAttention. Some people are working on this, see https://astral.sh/blog/introducing-pyx and https://wheelnext.dev/proposals/pepxxx_wheel_variant_support/
+## Citation
+**If you use this code or find our work valuable, please cite:**
+```
+@inproceedings{zhang2025sageattention,
+  title={SageAttention: Accurate 8-Bit Attention for Plug-and-play Inference Acceleration}, 
+  author={Zhang, Jintao and Wei, Jia and Zhang, Pengle and Zhu, Jun and Chen, Jianfei},
+  booktitle={International Conference on Learning Representations (ICLR)},
+  year={2025}
+}
+@inproceedings{zhang2024sageattention2,
+  title={Sageattention2: Efficient attention with thorough outlier smoothing and per-thread int4 quantization},
+  author={Zhang, Jintao and Huang, Haofeng and Zhang, Pengle and Wei, Jia and Zhu, Jun and Chen, Jianfei},
+  booktitle={International Conference on Machine Learning (ICML)},
+  year={2025}
+}
+@article{zhang2025sageattention2++,
+  title={Sageattention2++: A more efficient implementation of sageattention2},
+  author={Zhang, Jintao and Xu, Xiaoming and Wei, Jia and Huang, Haofeng and Zhang, Pengle and Xiang, Chendong and Zhu, Jun and Chen, Jianfei},
+  journal={arXiv preprint arXiv:2505.21136},
+  year={2025}
+}
+@article{zhang2025sageattention3,
+  title={SageAttention3: Microscaling FP4 Attention for Inference and An Exploration of 8-Bit Training},
+  author={Zhang, Jintao and Wei, Jia and Zhang, Pengle and Xu, Xiaoming and Huang, Haofeng and Wang, Haoxu and Jiang, Kai and Zhu, Jun and Chen, Jianfei},
+  journal={arXiv preprint arXiv:2505.11594},
+  year={2025}
+}
+```
