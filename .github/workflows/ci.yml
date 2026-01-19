@@ -56,23 +56,45 @@ jobs:
           echo "Current version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Check if tag exists
-        id: check_tag
+      - name: Generate unique release tag
+        id: generate_tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="v${{ steps.get_version.outputs.version }}"
-          if git ls-remote --exit-code --tags origin "refs/tags/$TAG_NAME" >/dev/null 2>&1; then
-            echo "Tag $TAG_NAME already exists. Skipping release."
-            echo "exists=true" >> $GITHUB_OUTPUT
+          VERSION="${{ steps.get_version.outputs.version }}"
+          BASE_TAG="v$VERSION"
+          
+          # Fetch all tags to ensure we have the full history
+          git fetch --tags
+          
+          # Check if base tag exists
+          if git ls-remote --exit-code --tags origin "refs/tags/$BASE_TAG" >/dev/null 2>&1; then
+            echo "Base tag $BASE_TAG exists. Calculating next build number..."
+            
+            # Find all tags matching "v2.2.0-build.*"
+            # We use git tag -l and sort to find the highest number
+            LAST_BUILD=$(git tag -l "$BASE_TAG-build.*" | sort -V | tail -n 1)
+            
+            if [[ -z "$LAST_BUILD" ]]; then
+              # No build tags yet, start at build.1
+              NEW_TAG="$BASE_TAG-build.1"
+            else
+              # Extract number and increment
+              # v2.2.0-build.6 -> 6
+              LAST_NUM=$(echo "$LAST_BUILD" | grep -oE '[0-9]+$')
+              NEXT_NUM=$((LAST_NUM + 1))
+              NEW_TAG="$BASE_TAG-build.$NEXT_NUM"
+            fi
           else
-            echo "Tag $TAG_NAME does not exist. Proceeding with release."
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Base tag $BASE_TAG does not exist. Using it."
+            NEW_TAG="$BASE_TAG"
           fi
+          
+          echo "Generated Release Tag: $NEW_TAG"
+          echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
       # Download and Publish ONLY if tag doesn't exist
       - name: Download Linux artifacts
-        if: steps.check_tag.outputs.exists == 'false'
         uses: actions/download-artifact@v4
         with:
           pattern: wheel-linux-*
@@ -80,7 +102,6 @@ jobs:
           merge-multiple: true
 
       - name: Download Windows artifacts
-        if: steps.check_tag.outputs.exists == 'false'
         uses: actions/download-artifact@v4
         with:
           pattern: wheel-windows-*
@@ -88,15 +109,14 @@ jobs:
           merge-multiple: true
 
       - name: Create GitHub Release
-        if: steps.check_tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          name: SageAttention ${{ steps.get_version.outputs.version }}
+          tag_name: ${{ steps.generate_tag.outputs.tag }}
+          name: SageAttention ${{ steps.generate_tag.outputs.tag }}
           files: dist/*.whl
           generate_release_notes: true
           body: |
-            ## 📦 SageAttention Wheels - ${{ steps.get_version.outputs.version }}
+            ## 📦 SageAttention Wheels - ${{ steps.generate_tag.outputs.tag }}
             
             This release includes pre-built wheels for **Linux and Windows**.
             
