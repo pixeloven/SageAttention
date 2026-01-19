@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  # Determine which profile to run based on event type
+  strategy:
+    runs-on: ubuntu-latest
+    outputs:
+      profile: ${{ steps.profile.outputs.profile }}
+    steps:
+      - id: profile
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "profile=default" >> $GITHUB_OUTPUT
+            echo "Event is PR: Using 'default' profile (fast build)"
+          else
+            echo "profile=stable" >> $GITHUB_OUTPUT
+            echo "Event is Push to Main: Using 'stable' profile (full build)"
+          fi
+
+  # Call Linux Build (Reusable)
+  build-linux:
+    needs: strategy
+    uses: ./.github/workflows/build-wheels-linux.yml
+    with:
+      build_profile: ${{ needs.strategy.outputs.profile }}
+
+  # Call Windows Build (Reusable)
+  build-windows:
+    needs: strategy
+    uses: ./.github/workflows/build-wheels-windows.yml
+    with:
+      build_profile: ${{ needs.strategy.outputs.profile }}
+
+  # Release Job (Only on push to main)
+  release:
+    needs: [build-linux, build-windows]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(grep -m1 'version =' pyproject.toml | cut -d '"' -f2)
+          echo "Current version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate unique release tag
+        id: generate_tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          BASE_TAG="v$VERSION"
+          
+          # Fetch all tags to ensure we have the full history
+          git fetch --tags
+          
+          # Check if base tag exists
+          if git ls-remote --exit-code --tags origin "refs/tags/$BASE_TAG" >/dev/null 2>&1; then
+            echo "Base tag $BASE_TAG exists. Calculating next build number..."
+            
+            # Find all tags matching "v2.2.0-build.*"
+            # We use git tag -l and sort to find the highest number
+            LAST_BUILD=$(git tag -l "$BASE_TAG-build.*" | sort -V | tail -n 1)
+            
+            if [[ -z "$LAST_BUILD" ]]; then
+              # No build tags yet, start at build.1
+              NEW_TAG="$BASE_TAG-build.1"
+            else
+              # Extract number and increment
+              # v2.2.0-build.6 -> 6
+              LAST_NUM=$(echo "$LAST_BUILD" | grep -oE '[0-9]+$')
+              NEXT_NUM=$((LAST_NUM + 1))
+              NEW_TAG="$BASE_TAG-build.$NEXT_NUM"
+            fi
+          else
+            echo "Base tag $BASE_TAG does not exist. Using it."
+            NEW_TAG="$BASE_TAG"
+          fi
+          
+          echo "Generated Release Tag: $NEW_TAG"
+          echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+      # Download and Publish ONLY if tag doesn't exist
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-linux-*
+          path: ./dist
+          merge-multiple: true
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-windows-*
+          path: ./dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.generate_tag.outputs.tag }}
+          name: SageAttention ${{ steps.generate_tag.outputs.tag }}
+          files: dist/*.whl
+          generate_release_notes: true
+          body: |
+            ## 📦 SageAttention Wheels - ${{ steps.generate_tag.outputs.tag }}
+            
+            This release includes pre-built wheels for **Linux and Windows**.
+            
+            ### 🛠️ Compatibility
+            | OS | Python | PyTorch | CUDA |
+            |----|--------|---------|------|
+            | 🐧 Linux | 3.12 | 2.7.0, 2.8.0, 2.9.0 | 12.8 |
+            | 🪟 Windows | 3.12 | 2.7.0, 2.8.0, 2.9.0 | 12.8 |
+
+            ### 💻 Installation
+            
+            **Linux (Example for PyTorch 2.9):**
+            ```bash
+            pip install https://github.com/${{ github.repository }}/releases/download/${{ steps.generate_tag.outputs.tag }}/sageattention-2.2.0-290.128-cp312-cp312-linux_x86_64.whl
+            ```
+
+            **Windows (Example for PyTorch 2.9):**
+            ```bash
+            pip install https://github.com/${{ github.repository }}/releases/download/${{ steps.generate_tag.outputs.tag }}/sageattention-2.2.0-290.128-cp312-cp312-win_amd64.whl
+            ```
+            
+            _Select the appropriate wheel for your PyTorch version from the Assets section below._
