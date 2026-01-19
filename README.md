@@ -206,31 +206,9 @@ If you need to build and run SageAttention on your own machine:
 
 ## Dev notes
 
-## Citation
-**If you use this code or find our work valuable, please cite:**
-```
-@inproceedings{zhang2025sageattention,
-  title={SageAttention: Accurate 8-Bit Attention for Plug-and-play Inference Acceleration}, 
-  author={Zhang, Jintao and Wei, Jia and Zhang, Pengle and Zhu, Jun and Chen, Jianfei},
-  booktitle={International Conference on Learning Representations (ICLR)},
-  year={2025}
-}
-@inproceedings{zhang2024sageattention2,
-  title={Sageattention2: Efficient attention with thorough outlier smoothing and per-thread int4 quantization},
-  author={Zhang, Jintao and Huang, Haofeng and Zhang, Pengle and Wei, Jia and Zhu, Jun and Chen, Jianfei},
-  booktitle={International Conference on Machine Learning (ICML)},
-  year={2025}
-}
-@article{zhang2025sageattention2++,
-  title={Sageattention2++: A more efficient implementation of sageattention2},
-  author={Zhang, Jintao and Xu, Xiaoming and Wei, Jia and Huang, Haofeng and Zhang, Pengle and Xiang, Chendong and Zhu, Jun and Chen, Jianfei},
-  journal={arXiv preprint arXiv:2505.21136},
-  year={2025}
-}
-@article{zhang2025sageattention3,
-  title={SageAttention3: Microscaling FP4 Attention for Inference and An Exploration of 8-Bit Training},
-  author={Zhang, Jintao and Wei, Jia and Zhang, Pengle and Xu, Xiaoming and Huang, Haofeng and Wang, Haoxu and Jiang, Kai and Zhu, Jun and Chen, Jianfei},
-  journal={arXiv preprint arXiv:2505.11594},
-  year={2025}
-}
-```
+* The wheels are built using the [workflow](https://github.com/woct0rdho/SageAttention/blob/main/.github/workflows/build-sageattn.yml)
+    * It's tricky to specify both torch (with index URL at download.pytorch.org ) and pybind11 (not in that index URL) in an isolated build environment. The easiest way I could think of is to use [simpleindex](https://github.com/uranusjr/simpleindex)
+* CUDA kernels for sm80/89/90 are bundled in the wheels, and also sm120 for CUDA >= 12.8
+* For RTX 20xx, SageAttention 2 runs Triton kernels, which are the same as SageAttention 1. If you want to help improve the CUDA kernels for RTX 20xx, you may see https://github.com/Ph0rk0z/SageAttention2/tree/updates
+* The wheels do not use CXX11 ABI
+* We cannot publish the wheels to PyPI, because PyPI does not support multiple PyTorch/CUDA variants for the same version of SageAttention. Some people are working on this, see https://astral.sh/blog/introducing-pyx and https://wheelnext.dev/proposals/pepxxx_wheel_variant_support/
