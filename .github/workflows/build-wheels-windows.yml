@@ -237,7 +237,7 @@ jobs:
           
           # Change to dist directory to avoid importing sageattention from source
           cd dist
-          python -c "import sageattention; print('✅ SageAttention imported successfully')"
+          python -c "import sageattention; print('SageAttention imported successfully')"
 
       - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
