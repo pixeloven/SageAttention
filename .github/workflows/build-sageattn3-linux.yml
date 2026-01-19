@@ -1,0 +1,162 @@
+name: Build SageAttention3 Wheels (Linux)
+
+on:
+  workflow_call:
+    inputs:
+      build_profile:
+        description: 'Build profile to use'
+        required: true
+        default: 'stable'
+        type: string
+  workflow_dispatch:
+    inputs:
+      build_profile:
+        description: 'Build profile to use'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable      # All builds
+
+jobs:
+  # Job 1: Generate build matrix
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: generate
+        uses: ./.github/actions/generate-matrix
+        with:
+          build_profile: ${{ inputs.build_profile }}
+          os: 'linux'
+          project: 'sage3'
+
+  # Job 2: Build wheels on Linux (Native)
+  build-wheels:
+    name: Build ${{ matrix.display }}
+    needs: [generate-matrix]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # REQUIRED for cutlass
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Setup CUDA Toolkit
+        uses: Jimver/cuda-toolkit@v0.2.30
+        with:
+          cuda: ${{ matrix.cuda }}
+          use-github-cache: false
+          log-file-suffix: "log-linux-sage3-py${{ matrix.python }}-torch${{ matrix.pytorch }}-cuda${{ matrix.cuda }}.txt"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Upgrade pip and install build tools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel packaging
+
+      - name: Install PyTorch ${{ matrix.pytorch }}
+        run: |
+          cuda_version="${{ matrix.cuda }}"
+          pytorch_version="${{ matrix.pytorch }}"
+          
+          # Construct index URL (Sage3 currently only supports new CUDA/Torch)
+          if [[ "$cuda_version" =~ ^12\.[89] ]] || [[ "$cuda_version" =~ ^13\. ]]; then
+             index_url="https://download.pytorch.org/whl/cu126"
+          else
+             # Fail safe
+             index_url="https://download.pytorch.org/whl/cu121"
+          fi
+          
+          pip install torch==$pytorch_version torchvision --index-url "$index_url"
+          
+      - name: Install build dependencies
+        run: |
+          pip install numpy packaging pybind11
+
+      - name: Build wheel (Sage3)
+        working-directory: ./sageattention3_blackwell
+        run: |
+          # Pattern: 2.9.0 -> 290
+          torch_tag=$(echo "${{ matrix.pytorch }}" | tr -d '.')
+          
+          # Pattern: 12.8.0 -> 12.8 -> 128
+          cuda_tag=$(echo "${{ matrix.cuda }}" | cut -d. -f1,2 | tr -d '.')
+          
+          export SAGEATTENTION_WHEEL_VERSION_SUFFIX="+cu${cuda_tag}torch${{ matrix.pytorch }}"
+          export TORCH_CUDA_ARCH_LIST="${{ matrix.arch_list }}"
+          export MAX_JOBS="1"
+          
+          # Fix for missing libcuda.so (linking against stubs)
+          export LDFLAGS="-L${CUDA_PATH}/lib64/stubs"
+
+          # Debug logging
+          export TORCH_CPP_LOG_LEVEL=INFO
+          export DISTUTILS_DEBUG=1
+          
+          python setup.py bdist_wheel --verbose
+          
+      - name: Verify wheel naming
+        working-directory: ./sageattention3_blackwell
+        shell: bash
+        run: |
+          echo "=== Built wheels ==="
+          ls -lh dist/
+
+          # Basic pattern check
+          for wheel in dist/*.whl; do
+            filename=$(basename "$wheel")
+            if [[ ! $filename =~ ^sageattn3-1\.0\.0\+cu[0-9]+torch[0-9]+\.[0-9]+\.[0-9]+-cp[0-9]+-cp[0-9]+-linux_x86_64\.whl$ ]]; then
+              echo "❌ Wheel name warning: $filename"
+            else
+              echo "✅ Wheel name looks correct: $filename"
+            fi
+          done
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-linux-sage3-py${{ matrix.python }}-torch${{ matrix.pytorch }}-cuda${{ matrix.cuda }}
+          path: ./sageattention3_blackwell/dist/*.whl
+          retention-days: 7
+          compression-level: 0
+
+      - name: Test wheel installation
+        working-directory: ./sageattention3_blackwell
+        run: |
+          wheel=$(ls dist/*.whl | head -n 1)
+          
+          cuda_version="${{ matrix.cuda }}"
+          if [[ "$cuda_version" =~ ^12\.[89] ]] || [[ "$cuda_version" =~ ^13\. ]]; then
+             index_url="https://download.pytorch.org/whl/cu126"
+          else
+             index_url="https://download.pytorch.org/whl/cu121"
+          fi
+          
+          echo "Installing wheel with index: $index_url"
+          pip install "$wheel" --index-url "$index_url"
