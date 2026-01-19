@@ -115,7 +115,7 @@ jobs:
         with:
           cuda: ${{ matrix.cuda }}
           use-github-cache: false
-          log-file-suffix: "log-linux-sage3-py${{ matrix.python }}-torch${{ matrix.pytorch }}.txt"
+          log-file-suffix: "log-linux-sage3-py${{ matrix.python }}-torch${{ matrix.pytorch }}-cuda${{ matrix.cuda }}.txt"
 
       - name: Install system dependencies
         run: |
