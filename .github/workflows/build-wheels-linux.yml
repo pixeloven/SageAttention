@@ -53,13 +53,11 @@ jobs:
 
           # Define all possible build configurations
           # Format: python_version|pytorch_version|cuda_version|display_name|arch_list
-          declare -a all_builds=(
-            # PyTorch 2.7.0 + CUDA 12.8 + Python 3.12
-            "3.12|2.7.0|12.8.0|PyTorch 2.7.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
-            # PyTorch 2.8.0 + CUDA 12.8 + Python 3.12
-            "3.12|2.8.0|12.8.0|PyTorch 2.8.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
-            # PyTorch 2.9.0 + CUDA 12.8 + Python 3.12
+            # PyTorch 2.9.0 + CUDA 12.8 - 13.1 + Python 3.12
             "3.12|2.9.0|12.8.0|PyTorch 2.9.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
+            "3.12|2.9.0|12.9.0|PyTorch 2.9.0 + CUDA 12.9 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
+            "3.12|2.9.0|13.0.0|PyTorch 2.9.0 + CUDA 13.0 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
+            "3.12|2.9.0|13.1.0|PyTorch 2.9.0 + CUDA 13.1 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
           )
 
           # Filter builds based on profile
@@ -153,7 +151,8 @@ jobs:
           # Construct index URL
           if [[ "$cuda_version" == "12.4"* ]]; then
             index_url="https://download.pytorch.org/whl/cu124"
-          elif [[ "$cuda_version" == "12.8"* ]]; then
+          elif [[ "$cuda_version" =~ ^12\.[89] ]] || [[ "$cuda_version" =~ ^13\. ]]; then
+             # For CUDA 12.8+, 12.9, 13.x we use cu126 for now as it's the latest stable PyTorch ABI
              index_url="https://download.pytorch.org/whl/cu126"
           else
              # Fallback for old/other versions
@@ -236,7 +235,7 @@ jobs:
           
           # Re-determine index URL to avoid pip downgrading torch to PyPI version
           cuda_version="${{ matrix.cuda }}"
-          if [[ "$cuda_version" == "12.8"* ]]; then
+          if [[ "$cuda_version" =~ ^12\.[89] ]] || [[ "$cuda_version" =~ ^13\. ]]; then
              index_url="https://download.pytorch.org/whl/cu126"
           else
              index_url="https://download.pytorch.org/whl/cu118"

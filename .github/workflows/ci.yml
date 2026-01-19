@@ -40,9 +40,23 @@ jobs:
     with:
       build_profile: ${{ needs.strategy.outputs.profile }}
 
+  # Call SageAttn3 Linux Build
+  build-sageattn3-linux:
+    needs: strategy
+    uses: ./.github/workflows/build-sageattn3-linux.yml
+    with:
+      build_profile: ${{ needs.strategy.outputs.profile }}
+
+  # Call SageAttn3 Windows Build
+  build-sageattn3-windows:
+    needs: strategy
+    uses: ./.github/workflows/build-sageattn3-windows.yml
+    with:
+      build_profile: ${{ needs.strategy.outputs.profile }}
+
   # Release Job (Only on push to main)
   release:
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-sageattn3-linux, build-sageattn3-windows]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -94,14 +108,14 @@ jobs:
           echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
       # Download and Publish ONLY if tag doesn't exist
-      - name: Download Linux artifacts
+      - name: Download Linux artifacts (SageAttention)
         uses: actions/download-artifact@v4
         with:
           pattern: wheel-linux-*
           path: ./dist
           merge-multiple: true
 
-      - name: Download Windows artifacts
+      - name: Download Windows artifacts (SageAttention)
         uses: actions/download-artifact@v4
         with:
           pattern: wheel-windows-*
@@ -120,11 +134,17 @@ jobs:
             
             This release includes pre-built wheels for **Linux and Windows**.
             
-            ### 🛠️ Compatibility
+            ### 🛠️ Compatibility (SageAttention)
             | OS | Python | PyTorch | CUDA |
             |----|--------|---------|------|
-            | 🐧 Linux | 3.12 | 2.7.0, 2.8.0, 2.9.0 | 12.8 |
-            | 🪟 Windows | 3.12 | 2.7.0, 2.8.0, 2.9.0 | 12.8 |
+            | 🐧 Linux | 3.12 | 2.9.0 | 12.8, 12.9, 13.0, 13.1 |
+            | 🪟 Windows | 3.12 | 2.9.0 | 12.8, 12.9, 13.0, 13.1 |
+
+            ### 🛠️ Compatibility (SageAttn3 - Blackwell)
+            | OS | Python | PyTorch | CUDA |
+            |----|--------|---------|------|
+            | 🐧 Linux | 3.12 | 2.9.0 | 12.8, 12.9, 13.0, 13.1 |
+            | 🪟 Windows | 3.12 | 2.9.0 | 12.8, 12.9, 13.0, 13.1 |
 
             ### 💻 Installation
             
@@ -132,10 +152,10 @@ jobs:
             ```bash
             pip install https://github.com/${{ github.repository }}/releases/download/${{ steps.generate_tag.outputs.tag }}/sageattention-2.2.0-290.128-cp312-cp312-linux_x86_64.whl
             ```
-
-            **Windows (Example for PyTorch 2.9):**
+            
+            **SageAttn3 (Blackwell):**
             ```bash
-            pip install https://github.com/${{ github.repository }}/releases/download/${{ steps.generate_tag.outputs.tag }}/sageattention-2.2.0-290.128-cp312-cp312-win_amd64.whl
+            pip install https://github.com/${{ github.repository }}/releases/download/${{ steps.generate_tag.outputs.tag }}/sageattn3-1.0.0+cu128torch2.9.0-cp312-cp312-linux_x86_64.whl
             ```
             
             _Select the appropriate wheel for your PyTorch version from the Assets section below._
