@@ -29,14 +29,14 @@ jobs:
   # Call Linux Build (Reusable)
   build-linux:
     needs: strategy
-    uses: ./.github/workflows/build-wheels-linux.yml
+    uses: ./.github/workflows/build-sageattn2-linux.yml
     with:
       build_profile: ${{ needs.strategy.outputs.profile }}
 
   # Call Windows Build (Reusable)
   build-windows:
     needs: strategy
-    uses: ./.github/workflows/build-wheels-windows.yml
+    uses: ./.github/workflows/build-sageattn2-windows.yml
     with:
       build_profile: ${{ needs.strategy.outputs.profile }}
 

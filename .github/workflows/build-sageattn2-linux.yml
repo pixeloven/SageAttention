@@ -36,65 +36,19 @@ jobs:
           echo "profile=${{ inputs.build_profile }}" >> $GITHUB_OUTPUT
       
 
-  # Job 2: Generate build matrix dynamically
+  # Job 1: Generate build matrix
   generate-matrix:
-    needs: configure
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Generate build matrix
-        id: generate
-        run: |
-          profile="${{ needs.configure.outputs.build_profile }}"
-
-          # Define all possible build configurations
-          # Format: python_version|pytorch_version|cuda_version|display_name|arch_list
-            # PyTorch 2.9.0 + CUDA 12.8 - 13.1 + Python 3.12
-            "3.12|2.9.0|12.8.0|PyTorch 2.9.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
-            "3.12|2.9.0|12.9.0|PyTorch 2.9.0 + CUDA 12.9 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
-            "3.12|2.9.0|13.0.0|PyTorch 2.9.0 + CUDA 13.0 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
-            "3.12|2.9.0|13.1.0|PyTorch 2.9.0 + CUDA 13.1 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
-          )
-
-          # Filter builds based on profile
-          declare -a selected_builds=()
-
-          case "$profile" in
-            "default")
-              # Single default build for PRs (Latest Stable)
-              selected_builds+=("3.12|2.9.0|12.8.0|PyTorch 2.9.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0")
-              ;;
-            "stable"|"sage2-all")
-              # All builds (both PyTorch versions)
-              selected_builds=("${all_builds[@]}")
-              ;;
-            *)
-              echo "Unknown profile: $profile"
-              exit 1
-              ;;
-          esac
-
-          # Convert to JSON matrix format
-          matrix_json="["
-          first=true
-          for build in "${selected_builds[@]}"; do
-            IFS='|' read -r python pytorch cuda display arch_list <<< "$build"
-            if [ "$first" = true ]; then
-              first=false
-            else
-              matrix_json+=","
-            fi
-            matrix_json+="{\"python\":\"$python\",\"pytorch\":\"$pytorch\",\"cuda\":\"$cuda\",\"display\":\"$display\",\"arch_list\":\"$arch_list\"}"
-          done
-          matrix_json+="]"
-
-          echo "matrix={\"include\":$matrix_json}" >> $GITHUB_OUTPUT
-          echo "Build count: ${#selected_builds[@]}"
-          echo "$matrix_json" | jq .
+      - uses: actions/checkout@v4
+      - id: generate
+        uses: ./.github/actions/generate-matrix
+        with:
+          build_profile: ${{ inputs.build_profile }}
+          os: 'linux'
+          project: 'sage2'
 
   # Job 3: Build wheels on Linux (Native)
   build-wheels:

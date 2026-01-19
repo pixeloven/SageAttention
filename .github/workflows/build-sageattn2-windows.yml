@@ -20,92 +20,24 @@ on:
           - sage2-all   # Same as stable (2 wheels)
 
 jobs:
-  # Job 1: Validate configuration
-  validate:
-    runs-on: windows-latest
-    outputs:
-      build_profile: ${{ steps.set-profile.outputs.profile }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set build profile
-        id: set-profile
-        shell: bash
-        run: |
-          # Always use the input provided by workflow_call or workflow_dispatch
-          echo "profile=${{ inputs.build_profile }}" >> $GITHUB_OUTPUT
-
-      - name: Validation summary
-        run: |
-          echo "✅ Windows build configuration validated"
-          echo "📦 Build profile: ${{ steps.set-profile.outputs.profile }}"
-
-  # Job 2: Generate build matrix dynamically
+  # Job 1: Generate build matrix
   generate-matrix:
-    needs: validate
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Generate build matrix
-        id: generate
-        shell: bash
-        run: |
-          profile="${{ needs.validate.outputs.build_profile }}"
-
-          # Define all possible build configurations
-          # Format: python_version|pytorch_version|cuda_version|display_name|arch_list
-            # PyTorch 2.9.0 + CUDA 12.8 - 13.1 + Python 3.12
-            "3.12|2.9.0|12.8.0|PyTorch 2.9.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
-            "3.12|2.9.0|12.9.0|PyTorch 2.9.0 + CUDA 12.9 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
-            "3.12|2.9.0|13.0.0|PyTorch 2.9.0 + CUDA 13.0 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
-            "3.12|2.9.0|13.1.0|PyTorch 2.9.0 + CUDA 13.1 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
-          )
-
-          # Filter builds based on profile
-          declare -a selected_builds=()
-
-          case "$profile" in
-            "default")
-              # Single default build for PRs (Latest Stable)
-              selected_builds+=("3.12|2.9.0|12.8.0|PyTorch 2.9.0 + CUDA 12.8 + Python 3.12|7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1")
-              ;;
-            "stable"|"sage2-all")
-              # All builds (both PyTorch versions)
-              selected_builds=("${all_builds[@]}")
-              ;;
-            *)
-              echo "Unknown profile: $profile"
-              exit 1
-              ;;
-          esac
-
-          # Convert to JSON matrix format
-          matrix_json="["
-          first=true
-          for build in "${selected_builds[@]}"; do
-            IFS='|' read -r python pytorch cuda display arch_list <<< "$build"
-            if [ "$first" = true ]; then
-              first=false
-            else
-              matrix_json+=","
-            fi
-            matrix_json+="{\"python\":\"$python\",\"pytorch\":\"$pytorch\",\"cuda\":\"$cuda\",\"display\":\"$display\",\"arch_list\":\"$arch_list\"}"
-          done
-          matrix_json+="]"
-
-          echo "matrix={\"include\":$matrix_json}" >> $GITHUB_OUTPUT
-          echo "Build count: ${#selected_builds[@]}"
-          echo "$matrix_json" | jq .
+      - uses: actions/checkout@v4
+      - id: generate
+        uses: ./.github/actions/generate-matrix
+        with:
+          build_profile: ${{ inputs.build_profile }}
+          os: 'windows'
+          project: 'sage2'
 
   # Job 2: Build wheels on Windows
   build-windows:
     name: Build ${{ matrix.display }}
-    needs: [validate, generate-matrix]
+    needs: [generate-matrix]
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -182,7 +114,7 @@ jobs:
         env:
           TORCH_VERSION: ${{ matrix.pytorch }}
           CUDA_VERSION: ${{ matrix.cuda }}
-          TORCH_CUDA_ARCH_LIST: "7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
+          TORCH_CUDA_ARCH_LIST: ${{ matrix.arch_list }}
           DISTUTILS_USE_SDK: "1"
           MAX_JOBS: "1"
 

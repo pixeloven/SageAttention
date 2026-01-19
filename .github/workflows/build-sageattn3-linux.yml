@@ -19,70 +19,24 @@ on:
           - stable      # All builds
 
 jobs:
-  # Job 1: Validate/Configure
-  configure:
-    runs-on: ubuntu-latest
-    outputs:
-      build_profile: ${{ steps.set-profile.outputs.profile }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set build profile
-        id: set-profile
-        run: |
-          echo "profile=${{ inputs.build_profile }}" >> $GITHUB_OUTPUT
-      
-
-  # Job 2: Generate build matrix dynamically
+  # Job 1: Generate build matrix
   generate-matrix:
-    needs: configure
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - id: generate
+        uses: ./.github/actions/generate-matrix
+        with:
+          build_profile: ${{ inputs.build_profile }}
+          os: 'linux'
+          project: 'sage3'
 
-      - name: Generate build matrix
-        id: generate
-        run: |
-          profile="${{ needs.configure.outputs.build_profile }}"
-
-          # Define all possible build configurations for SageAttn3
-          # Format: python_version|pytorch_version|cuda_version|display_name
-          declare -a all_builds=(
-            "3.12|2.9.0|12.8.0|Sage3 + PyTorch 2.9.0 + CUDA 12.8 + Python 3.12"
-            "3.12|2.9.0|12.9.0|Sage3 + PyTorch 2.9.0 + CUDA 12.9 + Python 3.12"
-            "3.12|2.9.0|13.0.0|Sage3 + PyTorch 2.9.0 + CUDA 13.0 + Python 3.12"
-            "3.12|2.9.0|13.1.0|Sage3 + PyTorch 2.9.0 + CUDA 13.1 + Python 3.12"
-          )
-
-          # Filter builds (currently only one profile 'stable', so use all)
-          declare -a selected_builds=("${all_builds[@]}")
-
-          # Convert to JSON matrix format
-          matrix_json="["
-          first=true
-          for build in "${selected_builds[@]}"; do
-            IFS='|' read -r python pytorch cuda display <<< "$build"
-            if [ "$first" = true ]; then
-              first=false
-            else
-              matrix_json+=","
-            fi
-            matrix_json+="{\"python\":\"$python\",\"pytorch\":\"$pytorch\",\"cuda\":\"$cuda\",\"display\":\"$display\"}"
-          done
-          matrix_json+="]"
-
-          echo "matrix={\"include\":$matrix_json}" >> $GITHUB_OUTPUT
-          echo "Build count: ${#selected_builds[@]}"
-          echo "$matrix_json" | jq .
-
-  # Job 3: Build wheels on Linux (Native)
+  # Job 2: Build wheels on Linux (Native)
   build-wheels:
     name: Build ${{ matrix.display }}
-    needs: [configure, generate-matrix]
+    needs: [generate-matrix]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -155,7 +109,7 @@ jobs:
           cuda_tag=$(echo "${{ matrix.cuda }}" | cut -d. -f1,2 | tr -d '.')
           
           export SAGEATTENTION_WHEEL_VERSION_SUFFIX="+cu${cuda_tag}torch${{ matrix.pytorch }}"
-          export TORCH_CUDA_ARCH_LIST="10.0;12.0"
+          export TORCH_CUDA_ARCH_LIST="${{ matrix.arch_list }}"
           export MAX_JOBS="1"
           
           python setup.py bdist_wheel
