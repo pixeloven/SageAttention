@@ -42,13 +42,13 @@ runs:
         if [[ "$project" == "sage2" ]]; then
           project_prefix=""
           if [[ "$os" == "windows" ]]; then
-             arch_list="7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0;12.0;12.1"
+             arch_list="7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
           else
              arch_list="7.0;7.5;8.0;8.6;8.7;8.9;9.0;10.0"
           fi
         elif [[ "$project" == "sage3" ]]; then
           project_prefix="Sage3 + "
-          arch_list="10.0;12.0" 
+          arch_list="10.0" 
         else
           echo "Error: Unknown project $project"
           exit 1

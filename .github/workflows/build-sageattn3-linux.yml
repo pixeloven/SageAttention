@@ -112,7 +112,11 @@ jobs:
           export TORCH_CUDA_ARCH_LIST="${{ matrix.arch_list }}"
           export MAX_JOBS="1"
           
-          python setup.py bdist_wheel
+          # Debug logging
+          export TORCH_CPP_LOG_LEVEL=INFO
+          export DISTUTILS_DEBUG=1
+          
+          python setup.py bdist_wheel --verbose
           
       - name: Verify wheel naming
         working-directory: ./sageattention3_blackwell

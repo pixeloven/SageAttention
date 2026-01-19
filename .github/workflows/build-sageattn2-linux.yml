@@ -20,22 +20,6 @@ on:
           - sage2-all   # Same as stable (2 wheels)
 
 jobs:
-  # Job 1: Validate/Configure
-  configure:
-    runs-on: ubuntu-latest
-    outputs:
-      build_profile: ${{ steps.set-profile.outputs.profile }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set build profile
-        id: set-profile
-        run: |
-          # Always use the input provided by workflow_call or workflow_dispatch
-          echo "profile=${{ inputs.build_profile }}" >> $GITHUB_OUTPUT
-      
-
   # Job 1: Generate build matrix
   generate-matrix:
     runs-on: ubuntu-latest
@@ -50,10 +34,10 @@ jobs:
           os: 'linux'
           project: 'sage2'
 
-  # Job 3: Build wheels on Linux (Native)
+  # Job 2: Build wheels on Linux (Native)
   build-wheels:
     name: Build ${{ matrix.display }}
-    needs: [configure, generate-matrix]
+    needs: [generate-matrix]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

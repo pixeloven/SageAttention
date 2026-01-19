@@ -26,29 +26,29 @@ jobs:
             echo "Event is Push to Main: Using 'stable' profile (full build)"
           fi
 
-  # Call Linux Build (Reusable)
-  build-linux:
+  # Call Sage2 Linux Build
+  build-sage2-linux:
     needs: strategy
     uses: ./.github/workflows/build-sageattn2-linux.yml
     with:
       build_profile: ${{ needs.strategy.outputs.profile }}
 
-  # Call Windows Build (Reusable)
-  build-windows:
+  # Call Sage2 Windows Build
+  build-sage2-windows:
     needs: strategy
     uses: ./.github/workflows/build-sageattn2-windows.yml
     with:
       build_profile: ${{ needs.strategy.outputs.profile }}
 
-  # Call SageAttn3 Linux Build
-  build-sageattn3-linux:
+  # Call Sage3 Linux Build
+  build-sage3-linux:
     needs: strategy
     uses: ./.github/workflows/build-sageattn3-linux.yml
     with:
       build_profile: ${{ needs.strategy.outputs.profile }}
 
-  # Call SageAttn3 Windows Build
-  build-sageattn3-windows:
+  # Call Sage3 Windows Build
+  build-sage3-windows:
     needs: strategy
     uses: ./.github/workflows/build-sageattn3-windows.yml
     with:
@@ -56,7 +56,7 @@ jobs:
 
   # Release Job (Only on push to main)
   release:
-    needs: [build-linux, build-windows, build-sageattn3-linux, build-sageattn3-windows]
+    needs: [build-sage2-linux, build-sage2-windows, build-sage3-linux, build-sage3-windows]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
