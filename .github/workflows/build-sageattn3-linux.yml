@@ -112,6 +112,9 @@ jobs:
           export TORCH_CUDA_ARCH_LIST="${{ matrix.arch_list }}"
           export MAX_JOBS="1"
           
+          # Fix for missing libcuda.so (linking against stubs)
+          export LDFLAGS="-L${CUDA_PATH}/lib64/stubs"
+
           # Debug logging
           export TORCH_CPP_LOG_LEVEL=INFO
           export DISTUTILS_DEBUG=1
