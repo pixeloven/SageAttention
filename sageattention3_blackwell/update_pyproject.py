@@ -20,13 +20,7 @@ if os.getenv("TORCH_VERSION"):
         # Fallback if version format is unexpected
         text = text.replace('"torch"', f'"torch=={torch_ver}"')
 else:
-    # Legacy logic fallback
-    TORCH_MINOR_VERSION = os.getenv("TORCH_MINOR_VERSION", "6")
-    TORCH_PATCH_VERSION = os.getenv("TORCH_PATCH_VERSION", "0")
-    TORCH_PATCH_VERSION_NEXT = str(int(TORCH_PATCH_VERSION) + 1)
-    TORCH_VERSION = f"2.{TORCH_MINOR_VERSION}.{TORCH_PATCH_VERSION}.dev0"
-    TORCH_VERSION_NEXT = f"2.{TORCH_MINOR_VERSION}.{TORCH_PATCH_VERSION_NEXT}"
-    text = text.replace('"torch"', f'"torch>={TORCH_VERSION},<{TORCH_VERSION_NEXT}"')
+    raise RuntimeError("TORCH_VERSION environment variable is required.")
 
 with open("./pyproject.toml", "w") as f:
     f.write(text)
@@ -35,14 +29,26 @@ with open("./pyproject.toml", "w") as f:
 with open("./simpleindex.toml", "r") as f:
     text = f.read()
 
-CUDA_MAJOR_VERSION = os.getenv("CUDA_MAJOR_VERSION", "12")
-CUDA_MINOR_VERSION = os.getenv("CUDA_MINOR_VERSION", "6")
-if os.getenv("TORCH_IS_NIGHTLY") in ["1", "nightly"]:
-    text = text.replace("/cu126/", f"/nightly/cu{CUDA_MAJOR_VERSION}{CUDA_MINOR_VERSION}/")
-elif os.getenv("TORCH_IS_NIGHTLY") == "test":
-    text = text.replace("/cu126/", f"/test/cu{CUDA_MAJOR_VERSION}{CUDA_MINOR_VERSION}/")
+if os.getenv("CUDA_VERSION"):
+    cuda_ver = os.getenv("CUDA_VERSION")
+    parts = cuda_ver.split('.')
+    if len(parts) >= 2:
+        CUDA_MAJOR_VERSION = parts[0]
+        CUDA_MINOR_VERSION = parts[1]
+    else:
+        # Fallback if parsing fails but env var exists (unlikely but safe)
+        CUDA_MAJOR_VERSION = "12"
+        CUDA_MINOR_VERSION = "8"
 else:
-    text = text.replace("/cu126/", f"/cu{CUDA_MAJOR_VERSION}{CUDA_MINOR_VERSION}/")
+    # Default to 12.8
+    CUDA_MAJOR_VERSION = "12"
+    CUDA_MINOR_VERSION = "8"
+if os.getenv("TORCH_IS_NIGHTLY") in ["1", "nightly"]:
+    text = text.replace("/cu128/", f"/nightly/cu{CUDA_MAJOR_VERSION}{CUDA_MINOR_VERSION}/")
+elif os.getenv("TORCH_IS_NIGHTLY") == "test":
+    text = text.replace("/cu128/", f"/test/cu{CUDA_MAJOR_VERSION}{CUDA_MINOR_VERSION}/")
+else:
+    text = text.replace("/cu128/", f"/cu{CUDA_MAJOR_VERSION}{CUDA_MINOR_VERSION}/")
 
 with open("./simpleindex.toml", "w") as f:
     f.write(text)

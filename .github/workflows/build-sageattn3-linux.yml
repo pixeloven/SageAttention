@@ -87,7 +87,7 @@ jobs:
           
           # Construct index URL (Sage3 currently only supports new CUDA/Torch)
           if [[ "$cuda_version" =~ ^12\.[89] ]] || [[ "$cuda_version" =~ ^13\. ]]; then
-             index_url="https://download.pytorch.org/whl/cu126"
+             index_url="https://download.pytorch.org/whl/cu128"
           else
              # Fail safe
              index_url="https://download.pytorch.org/whl/cu121"
@@ -153,7 +153,7 @@ jobs:
           
           cuda_version="${{ matrix.cuda }}"
           if [[ "$cuda_version" =~ ^12\.[89] ]] || [[ "$cuda_version" =~ ^13\. ]]; then
-             index_url="https://download.pytorch.org/whl/cu126"
+             index_url="https://download.pytorch.org/whl/cu128"
           else
              index_url="https://download.pytorch.org/whl/cu121"
           fi

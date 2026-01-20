@@ -5,7 +5,7 @@
 #   - platform: linux
 #   - package: sage2 (SageAttention 2/2++) or sage3 (SageAttention3)
 #   - pytorch: pytorch26, pytorch27, pytorch28
-#   - cuda: cu126, cu128, cu129
+#   - cuda: cu128, cu129
 #   - python: python39, python310, python311, python312, python313
 #
 # Wheel naming (PEP 427):
@@ -21,7 +21,7 @@ variable "PYTHON_VERSION" {
 }
 
 variable "CUDA_VERSION" {
-  default = "12.9.1"
+  default = "12.8.1"
 }
 
 variable "TORCH_VERSION" {

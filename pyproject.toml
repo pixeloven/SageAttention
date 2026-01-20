@@ -7,7 +7,7 @@ requires = [
     "wheel",
     "ninja",
     # torch version will be added by update_pyproject.py
-    "torch",
+    "torch>=2.9.0,<2.10.0",
 ]
 
 [project]
@@ -33,7 +33,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "torch",
+    "torch>=2.9.0,<2.10.0",
     "numpy",
     "triton; platform_system == 'Linux'",
 ]
