@@ -178,7 +178,7 @@ class CachedWheelsCommand(bdist_wheel):
 
 setup(
     name=PACKAGE_NAME,
-    version="1.0.0" + os.environ.get("SAGEATTENTION_WHEEL_VERSION_SUFFIX", ""),
+    version="3.0.0",
     packages=find_packages(),
     description="FP4FlashAttention",
     long_description_content_type="text/markdown",
