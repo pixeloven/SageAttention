@@ -10,6 +10,9 @@ ARG TORCH_CUDA_ARCH_LIST=8.0;8.6;8.9;9.0;12.0
 # Stage 1: Runtime environment with PyTorch and dependencies
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu24.04 AS runtime
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
 # Re-declare ARGs after FROM
 ARG CUDA_VERSION
 ARG PYTHON_VERSION
@@ -52,15 +55,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Upgrade pip and install build tools (cached layer)
+# Upgrade pip (and install build tools later with uv)
 RUN pip install --upgrade pip setuptools wheel packaging
 
-# Install PyTorch with caching optimization
-RUN --mount=type=cache,target=/root/.cache/pip \
+# Install PyTorch with caching optimization using uv
+RUN --mount=type=cache,target=/root/.cache/uv \
     if [ "$CUDA_VERSION" = "12.8.1" ]; then \
-    pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
+    uv pip install --system torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu128; \
     else \
-    pip install torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
+    uv pip install --system torch==${TORCH_VERSION} torchvision --index-url https://download.pytorch.org/whl/cu129; \
     fi
 
 # Stage 2: Builder - compiles SageAttention wheel (wheel stays embedded)
@@ -71,6 +74,9 @@ ARG TORCH_VERSION
 ARG PYTHON_VERSION
 ARG TORCH_CUDA_ARCH_LIST
 ARG MAX_JOBS
+
+# Install uv for fast package management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 # Set build environment variables
 ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
@@ -89,7 +95,7 @@ WORKDIR /src
 COPY . .
 
 # Update pyproject.toml with correct PyTorch version
-RUN python update_pyproject.py
+RUN python update_pyproject.py ./pyproject.toml
 
 # Calculate version suffix for wheel name (e.g. 8.9 for torch 2.8 and cuda 12.9)
 RUN echo "Calculating version suffix..." && \
@@ -99,12 +105,12 @@ RUN echo "Calculating version suffix..." && \
     echo "SAGEATTENTION_BUILD_TAG=${TORCH_MINOR}.${CUDA_MINOR}" >> /etc/environment
 
 # Install build dependencies
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install numpy packaging pybind11 ninja
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system numpy packaging pybind11 ninja
 
 # Build SageAttention wheel with cache mount for compilation artifacts
 RUN --mount=type=cache,target=/tmp/ccache \
-    --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/root/.cache/uv \
     . /etc/environment && \
     CCACHE_DIR=/tmp/ccache \
     python setup.py bdist_wheel --build-number "${SAGEATTENTION_BUILD_TAG}"

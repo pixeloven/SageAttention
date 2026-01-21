@@ -1,5 +1,35 @@
 # Contributing to SageAttention (Fork)
 
+## 📂 Project Structure & Tools
+
+This repository is organized to support high-performance attention kernels with robust cross-platform build systems.
+
+### Directory Layout
+
+```text
+SageAttention/
+├── .github/                 # CI/CD workflows and actions
+│   ├── workflows/           # GitHub Actions workflows
+│   └── actions/             # Custom composite actions
+├── assets/                  # Images and static assets
+├── bench/                   # Benchmarking scripts
+├── csrc/                    # C++/CUDA source code for kernels
+├── example/                 # Example scripts and usage demos
+├── sageattention/           # Main Python package source (SageAttention 2)
+├── sageattention3_blackwell/# SageAttention 3 (Blackwell-optimized) source
+├── tests/                   # Unit tests
+├── docker-bake.hcl          # Docker Buildx Bake configuration
+├── dockerfile.builder.linux # Main Dockerfile for Linux builds
+├── pyproject.toml           # Project configuration and dependencies
+├── setup.py                 # SageAttention 2 build script
+└── update_pyproject.py      # Script to update version/dependencies
+```
+
+### Build Tools & Goals
+*   **Docker (`docker-bake.hcl`)**: We use Docker Buildx Bake to orchestrate complex multi-platform builds. This ensures that our build environment is consistent and reproducible, regardless of the host machine.
+*   **CI/CD (`.github/workflows`)**: Our GitHub Actions pipeline handles linting, testing, and wheel generation. It automates the release process, ensuring that every tag results in a verified set of artifacts.
+*   **Dual-Version Support**: The repository houses both the standard `sageattention` and the next-gen `sageattention3_blackwell` for optimized performance on newer hardware.
+
 This guide details the enhancements made in this fork, specifically regarding **Docker-based builds**, **CI/CD standards** and **Pre-built wheels**.
 
 ## 🚀 Quick Start for Developers
