@@ -82,7 +82,7 @@ jobs:
           if [[ "$cuda_version" == "12.4"* ]]; then
             pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu124
           elif [[ "$cuda_version" =~ ^12\.[89] ]] || [[ "$cuda_version" =~ ^13\. ]]; then
-            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu126
+            pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu128
           else
             pip install torch==$pytorch_version torchvision --index-url https://download.pytorch.org/whl/cu118
           fi
@@ -107,6 +107,9 @@ jobs:
 
       - name: Update pyproject.toml with PyTorch version
         run: python update_pyproject.py
+        env:
+          TORCH_VERSION: ${{ matrix.pytorch }}
+          CUDA_VERSION: ${{ matrix.cuda }}
 
       - name: Build wheel (${{ matrix.display }})
         run: |
@@ -154,7 +157,7 @@ jobs:
           # Re-determine index URL
           cuda_version="${{ matrix.cuda }}"
           if [[ "$cuda_version" =~ ^12\.[89] ]] || [[ "$cuda_version" =~ ^13\. ]]; then
-             index_url="https://download.pytorch.org/whl/cu126"
+             index_url="https://download.pytorch.org/whl/cu128"
           else
              index_url="https://download.pytorch.org/whl/cu118"
           fi
