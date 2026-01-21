@@ -2,7 +2,7 @@
 
 import torch
 import torch.nn.functional as F
-from sageattn3 import sageattn3_blackwell
+from sageattention import sageattn3_blackwell
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
 

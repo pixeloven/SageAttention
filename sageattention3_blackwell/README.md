@@ -23,7 +23,7 @@ This hybrid approach may achieve **lossless acceleration**.
 
 ## Installation
 ### Base environment
-+ `python>=3.13`   , `torch>=2.8.0`, `CUDA >=12.8`
++ `python>=3.9`   , `torch>=2.8.0`, `CUDA >=12.8`
 
 ### Install Package
 
@@ -37,7 +37,7 @@ python setup.py install
 
 ## How to Use
 ```python
-from sageattn3 import sageattn3_blackwell
+from sageattention import sageattn3_blackwell
 attn_output = sageattn3_blackwell(q, k, v, is_causal=False)
 ```
 + `q, k, v` are **FP16/BF16** dtype with the shape `(batch_size, head_num, seq_len, head_dim)` 

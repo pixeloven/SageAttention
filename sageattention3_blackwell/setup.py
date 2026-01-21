@@ -11,7 +11,7 @@ from torch.utils.cpp_extension import BuildExtension, CppExtension, CUDAExtensio
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
-PACKAGE_NAME = "sageattn3"
+PACKAGE_NAME = "sageattention"
 
 # FORCE_BUILD: Force a fresh build locally, instead of attempting to find prebuilt wheels
 # SKIP_CUDA_BUILD: Intended to allow CI to use a simple `python setup.py sdist` run to copy over raw files, without any cuda compilation
@@ -141,7 +141,7 @@ if not SKIP_CUDA_BUILD:
 
     ext_modules.append(
         CUDAExtension(
-            name="sageattn3.fp4attn_cuda",
+            name="sageattention.fp4attn_cuda",
             sources=["csrc/blackwell/api.cu"],
             extra_compile_args={
                 "cxx": CXX_FLAGS,
@@ -156,7 +156,7 @@ if not SKIP_CUDA_BUILD:
     )
     ext_modules.append(
         CUDAExtension(
-            name="sageattn3.fp4quant_cuda",
+            name="sageattention.fp4quant_cuda",
             sources=["csrc/quantization/fp4_quantization_4d.cu"],
             extra_compile_args={
                 "cxx": CXX_FLAGS,
