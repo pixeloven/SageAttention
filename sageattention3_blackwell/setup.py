@@ -136,12 +136,16 @@ if not SKIP_CUDA_BUILD:
         cutlass_dir / "tools" / "util" / "include",
     ]
 
+    cxx_args = ['-O3', '-std=c++17']
+    if os.name == 'nt':
+        cxx_args = ['/O2', '/std:c++17']
+
     ext_modules.append(
         CUDAExtension(
             name="fp4attn_cuda",
             sources=["sageattn3/blackwell/api.cu"],
             extra_compile_args={
-                "cxx": ["-O3", "-std=c++17"],
+                "cxx": cxx_args,
                 "nvcc": append_nvcc_threads(
                     nvcc_flags + ["-DEXECMODE=0"] + cc_flag
                 ),
@@ -156,7 +160,7 @@ if not SKIP_CUDA_BUILD:
             name="fp4quant_cuda",
             sources=["sageattn3/quantization/fp4_quantization_4d.cu"],
             extra_compile_args={
-                "cxx": ["-O3", "-std=c++17"],
+                "cxx": cxx_args,
                 "nvcc": append_nvcc_threads(
                     nvcc_flags + ["-DEXECMODE=0"] + cc_flag
                 ),
