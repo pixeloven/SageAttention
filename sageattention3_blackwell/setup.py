@@ -59,18 +59,40 @@ if not SKIP_CUDA_BUILD:
     _, bare_metal_version = get_cuda_bare_metal_version(CUDA_HOME)
     if bare_metal_version < Version("12.8"):
         raise RuntimeError("Sage3 is only supported on CUDA 12.8 and above")
-    cc_major, cc_minor = torch.cuda.get_device_capability()
-    if (cc_major, cc_minor) == (10, 0):  # sm_100
-        cc_flag.append("-gencode")
-        cc_flag.append("arch=compute_100a,code=sm_100a")
-    elif (cc_major, cc_minor) == (12, 0):  # sm_120
-        cc_flag.append("-gencode")
-        cc_flag.append("arch=compute_120a,code=sm_120a")
-    elif (cc_major, cc_minor) == (12, 1):  # sm_121
-        cc_flag.append("-gencode")
-        cc_flag.append("arch=compute_121a,code=sm_121a")
+    # Check if TORCH_CUDA_ARCH_LIST is set (e.g. in CI)
+    torch_cuda_arch_list = os.getenv("TORCH_CUDA_ARCH_LIST")
+    
+    if torch_cuda_arch_list:
+        # Support multiple architectures
+        if "10.0" in torch_cuda_arch_list:
+            cc_flag.append("-gencode")
+            cc_flag.append("arch=compute_100a,code=sm_100a")
+        if "12.0" in torch_cuda_arch_list:
+            cc_flag.append("-gencode")
+            cc_flag.append("arch=compute_120a,code=sm_120a")
+        if "12.1" in torch_cuda_arch_list:
+            cc_flag.append("-gencode")
+            cc_flag.append("arch=compute_121a,code=sm_121a")
+            
+        if not cc_flag:
+            warnings.warn(f"TORCH_CUDA_ARCH_LIST={torch_cuda_arch_list} is set but contains no known Sage3 architectures (10.0, 12.0, 12.1).")
     else:
-        raise RuntimeError("Unsupported GPU")
+        # Fallback to device detection
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is not available and TORCH_CUDA_ARCH_LIST is not set. Cannot determine target architecture.")
+            
+        cc_major, cc_minor = torch.cuda.get_device_capability()
+        if (cc_major, cc_minor) == (10, 0):  # sm_100
+            cc_flag.append("-gencode")
+            cc_flag.append("arch=compute_100a,code=sm_100a")
+        elif (cc_major, cc_minor) == (12, 0):  # sm_120
+            cc_flag.append("-gencode")
+            cc_flag.append("arch=compute_120a,code=sm_120a")
+        elif (cc_major, cc_minor) == (12, 1):  # sm_121
+            cc_flag.append("-gencode")
+            cc_flag.append("arch=compute_121a,code=sm_121a")
+        else:
+            raise RuntimeError("Unsupported GPU")
 
     # HACK: The compiler flag -D_GLIBCXX_USE_CXX11_ABI is set to be the same as
     # torch._C._GLIBCXX_USE_CXX11_ABI
