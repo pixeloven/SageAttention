@@ -95,20 +95,27 @@ jobs:
         working-directory: ./sageattention3_blackwell
         shell: powershell
         run: |
+          # Update pyproject.toml with explicit torch version from matrix
+          $env:TORCH_VERSION = "${{ matrix.pytorch }}"
+          python ../update_pyproject.py ./pyproject.toml
+
           # Extract version components for build tags
           $pytorch = "${{ matrix.pytorch }}"
           $cuda = "${{ matrix.cuda }}"
           
+          # Pattern: 2.9.0 -> 290
+          $torch_tag = $pytorch.Replace('.', '')
+
           # Pattern: 12.8.0 -> 12.8 -> 128
           $cuda_parts = $cuda.Split('.')
           $cuda_tag = $cuda_parts[0] + $cuda_parts[1]
           
-          $env:SAGEATTENTION_WHEEL_VERSION_SUFFIX = "+cu" + $cuda_tag + "torch" + $pytorch
+          $env:SAGEATTENTION_BUILD_TAG = $torch_tag + "." + $cuda_tag
           $env:TORCH_CUDA_ARCH_LIST = "${{ matrix.arch_list }}"
           $env:DISTUTILS_USE_SDK = "1"
           $env:MAX_JOBS = "1"
           
-          python setup.py bdist_wheel
+          python setup.py bdist_wheel --build-number "$env:SAGEATTENTION_BUILD_TAG"
 
       - name: Verify wheel naming
         working-directory: ./sageattention3_blackwell
@@ -121,8 +128,8 @@ jobs:
             filename=$(basename "$wheel")
             echo "Checking wheel: $filename"
             
-            # Pattern: sageattn3-1.0.0+cu128torch2.9.0-cp312-cp312-win_amd64.whl
-            if [[ ! $filename =~ ^sageattn3-1\.0\.0\+cu[0-9]+torch[0-9]+\.[0-9]+\.[0-9]+-cp[0-9]+-cp[0-9]+-win_amd64\.whl$ ]]; then
+            # Pattern: sageattention-3.0.0-290.128-cp312-cp312-win_amd64.whl
+            if [[ ! $filename =~ ^sageattention-3\.0\.0-[0-9]+\.[0-9]+-cp[0-9]+-cp[0-9]+-win_amd64\.whl$ ]]; then
               echo "❌ Wheel name warning: $filename"
             else
               echo "✅ Wheel name looks correct: $filename"
