@@ -143,7 +143,7 @@ if not SKIP_CUDA_BUILD:
 
     cxx_args = ['-O3', '-std=c++17']
     if os.name == 'nt':
-        cxx_args = ['/O2', '/std:c++17', '/permissive-']
+        cxx_args = ['/O2', '/std:c++17', '/permissive']
 
     ext_modules.append(
         CUDAExtension(
